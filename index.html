@@ -382,6 +382,7 @@
         function loadGallery() { const grid = document.getElementById('galleryGrid'); if (!grid) return; if (!currentUser) return; grid.innerHTML = '<p class="text-indigo-400 text-sm col-span-full py-10 animate-pulse">불러오는 중... ☁️</p>'; storage.ref(`users/${currentUser.uid}/cloud`).listAll().then((res) => { if (res.items.length === 0) { grid.innerHTML = '<p class="text-slate-400 text-sm col-span-full py-10">저장된 파일이 없습니다.</p>'; return; } grid.innerHTML = ''; res.items.reverse().forEach((itemRef) => { itemRef.getDownloadURL().then((url) => { const isVideo = itemRef.name.match(/\.(mp4|webm|ogg|mov)$/i); const card = document.createElement('div'); card.className = "relative group rounded-xl overflow-hidden bg-slate-200 aspect-square shadow-sm"; card.innerHTML = isVideo ? `<video src="${url}" class="w-full h-full object-cover" controls preload="metadata"></video>` : `<img src="${url}" class="w-full h-full object-cover transition duration-300 group-hover:scale-110">`; const delBtn = document.createElement('button'); delBtn.className = "absolute top-2 right-2 bg-rose-500 text-white w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center hover:bg-rose-600"; delBtn.innerHTML = '<i class="fa-solid fa-trash text-xs"></i>'; delBtn.onclick = () => { if (confirm("완전히 삭제하시겠습니까?")) itemRef.delete().then(() => loadGallery()); }; card.appendChild(delBtn); grid.appendChild(card); }); }); }); }
     </script>
     <style>
+        /* 기존 스크롤바 및 애니메이션 유지 */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -435,6 +436,25 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        /* 📱 [모바일 풀스크린 마법 패치] */
+        @media (max-width: 1024px) {
+
+            /* 1. 알맹이 영역이 무조건 모바일 화면 세로 길이를 꽉 채우도록 강제 (상단 헤더 80px 제외) */
+            #contentArea {
+                min-height: calc(100vh - 80px);
+                min-height: calc(100dvh - 80px);
+                /* 최신 폰 주소창 숨김 완벽 대응 */
+            }
+
+            /* 2. iframe(다이어리, 트래커 등)과 빈 칸반 보드도 쪼그라들지 못하게 100% 쫙 펴기 */
+            #contentArea>div,
+            #contentArea iframe {
+                min-height: calc(100vh - 80px) !important;
+                min-height: calc(100dvh - 80px) !important;
+                height: 100% !important;
             }
         }
     </style>
