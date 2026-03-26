@@ -14,7 +14,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 
-<body class="bg-[#131417] font-sans flex h-screen overflow-hidden text-slate-800 m-0 relative">
+<body
+    class="bg-[#131417] font-sans flex flex-col min-h-screen lg:h-screen overflow-x-hidden lg:overflow-hidden text-slate-800 m-0 relative">
 
     <div id="splashScreen"
         class="fixed inset-0 bg-black flex flex-col items-center justify-center z-50 transition-opacity duration-700 overflow-hidden">
@@ -266,8 +267,15 @@
                     btn.className = "nav-btn w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-950 text-slate-500 hover:bg-rose-950 hover:text-rose-300 hover:border-rose-800 transition-all duration-300 border border-slate-800 group";
                 } else {
                     btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300";
-                }
-            });
+                    if (pageId === 'cloud') loadGallery();
+                    if (pageId === 'board') initKanban();
+                    if (pageId === 'vault') initVault();
+
+                    // 💡 [모바일 패치] 가로가 좁은 폰 화면일 때, 메뉴 클릭 시 아래 본문으로 스르륵 자동 스크롤!
+                    if (window.innerWidth < 1024) {
+                        document.querySelector('main').scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
 
             // 클릭한 버튼 활성화
             const activeBtn = document.getElementById('nav-' + pageId);
