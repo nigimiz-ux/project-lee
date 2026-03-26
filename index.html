@@ -172,7 +172,32 @@
         let currentUser = null; let draggedTaskKey = null; let boardData = {}; let currentEditKey = null;
 
         document.addEventListener("DOMContentLoaded", () => { setTimeout(() => { document.getElementById('loadingRings').style.opacity = '0'; document.getElementById('terminalText').style.opacity = '0'; setTimeout(() => { document.getElementById('finalLogo').style.opacity = '1'; document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)'; setTimeout(() => { document.getElementById('splashScreen').style.opacity = '0'; document.getElementById('mainApp').classList.remove('hidden'); setTimeout(() => { document.getElementById('mainApp').style.opacity = '1'; document.getElementById('splashScreen').style.display = 'none'; navigateTo('home'); }, 50); }, 1200); }, 300); }, 2800); });
-        function toggleAuth() { if (currentUser) auth.signOut(); else auth.signInWithRedirect(provider); }
+        function toggleAuth() {
+            if (currentUser) {
+                auth.signOut();
+            } else {
+                // 먼저 화면이 안 넘어가는 Popup 방식으로 시도!
+                auth.signInWithPopup(provider).catch((error) => {
+                    // 만약 폰에서 팝업을 차단했다면, 그때 Redirect 방식으로 우회!
+                    if (error.code === 'auth/popup-blocked') {
+                        auth.signInWithRedirect(provider);
+                    } else {
+                        alert("로그인 중 에러가 발생했습니다: " + error.message);
+                    }
+                });
+            }
+        }
+
+        // 💡 [패치 2] 리다이렉트로 돌아왔을 때, 잃어버린 증명서 강제로 낚아채기!
+        auth.getRedirectResult().then((result) => {
+            if (result.user) {
+                console.log("모바일 리다이렉트 로그인 성공!");
+            }
+        }).catch((error) => {
+            console.error("로그인 증명서 유실 에러:", error);
+        });
+
+        // (이 아래부터는 기존 auth.onAuthStateChanged 로직 그대로 유지)
         auth.onAuthStateChanged((user) => {
             const authBtn = document.getElementById('authBtn'); const userInfoArea = document.getElementById('userInfoArea');
             if (user) {
