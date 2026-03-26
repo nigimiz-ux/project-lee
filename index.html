@@ -261,23 +261,16 @@
         const pageTitles = { 'home': 'Dashboard Overview', 'cloud': 'Mini Cloud (Storage)', 'board': 'Workflow Board', 'vault': 'Master Vault (Admin)', 'diary': 'Strategic Diary', 'voice': 'Voice Studio V3', 'tracker': 'Shoe Tracker V1', 'leave': '연차 결제 시스템' };
 
         function navigateTo(pageId) {
-            // 버튼 스타일 초기화 (기본 메뉴는 투명, 볼트는 검정)
+            // 1. 버튼 스타일 초기화 (기본 메뉴는 투명, 볼트는 검정)
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 if (btn.id === 'nav-vault') {
                     btn.className = "nav-btn w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-950 text-slate-500 hover:bg-rose-950 hover:text-rose-300 hover:border-rose-800 transition-all duration-300 border border-slate-800 group";
                 } else {
                     btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300";
-                    if (pageId === 'cloud') loadGallery();
-                    if (pageId === 'board') initKanban();
-                    if (pageId === 'vault') initVault();
+                }
+            });
 
-                    // 💡 [모바일 패치] 가로가 좁은 폰 화면일 때, 메뉴 클릭 시 아래 본문으로 스르륵 자동 스크롤!
-                    if (window.innerWidth < 1024) {
-                        document.querySelector('main').scrollIntoView({ behavior: 'smooth' });
-                    }
-                });
-
-            // 클릭한 버튼 활성화
+            // 2. 클릭한 버튼 활성화 (색상 변경)
             const activeBtn = document.getElementById('nav-' + pageId);
             if (activeBtn) {
                 if (pageId === 'vault') {
@@ -290,12 +283,19 @@
                 }
             }
 
+            // 3. 화면 갈아 끼우기
             document.getElementById('pageTitle').innerText = pageTitles[pageId];
             document.getElementById('contentArea').innerHTML = pages[pageId];
 
+            // 4. 페이지 진입 시 DB 데이터 불러오기
             if (pageId === 'cloud') loadGallery();
             if (pageId === 'board') initKanban();
-            if (pageId === 'vault') initVault(); // 🛡️ Vault 진입 시 DB 호출
+            if (pageId === 'vault') initVault();
+
+            // 💡 [모바일 패치] 모든 작업이 다 끝난 뒤 마지막으로 스크롤을 내립니다!
+            if (window.innerWidth < 1024) {
+                document.querySelector('main').scrollIntoView({ behavior: 'smooth' });
+            }
         }
 
         // 🛡️ [NEW] Master Vault 데이터 테이블 로직
