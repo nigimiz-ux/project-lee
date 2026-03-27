@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Project LEE - Executive OS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -12,6 +12,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
     <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
 </head>
 
@@ -93,10 +95,9 @@
             <div class="px-4 py-2 flex-shrink-0 border-t border-slate-800 mt-auto">
                 <button onclick="navigateTo('vault')" id="nav-vault"
                     class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-950 text-slate-500 hover:bg-rose-950 hover:text-rose-300 hover:border-rose-800 transition-all duration-300 border border-slate-800 group">
-                    <div class="flex items-center gap-3">
-                        <i class="fa-solid fa-vault group-hover:text-rose-500 transition"></i>
-                        <span class="font-bold text-sm tracking-wide">Master Vault</span>
-                    </div>
+                    <div class="flex items-center gap-3"><i
+                            class="fa-solid fa-vault group-hover:text-rose-500 transition"></i><span
+                            class="font-bold text-sm tracking-wide">Master Vault</span></div>
                     <i
                         class="fa-solid fa-lock text-[10px] opacity-30 group-hover:opacity-100 group-hover:text-rose-500"></i>
                 </button>
@@ -131,7 +132,7 @@
 
     <div id="taskModal"
         class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm opacity-0 transition-opacity duration-300">
-        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col transform scale-95 transition-transform duration-300"
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col transform scale-95 transition-transform duration-300 m-4"
             id="taskModalBox">
             <div class="bg-indigo-600 p-5 flex justify-between items-start text-white">
                 <div><span class="text-indigo-200 text-xs font-bold tracking-wider uppercase mb-1 block"><i
@@ -167,11 +168,12 @@
     </div>
 
     <script>
-        // 💡 [패치] 모바일 터치 드래그 통역기 가동 (0.2초 누르면 드래그 시작)
+        // 💡 [핵심] 모바일/탭 터치 드래그 통역기 가동
         MobileDragDrop.polyfill({
-            holdToDrag: 200
+            holdToDrag: 200 // 0.2초간 꾹 누르면 드래그 시작
         });
         window.addEventListener('touchmove', function () { }, { passive: false });
+
         const firebaseConfig = { apiKey: "AIzaSyDcQNHIUYSbJe8qnc4EqzRpGmQ4qufz7Ok", authDomain: "aje-executive-db.firebaseapp.com", databaseURL: "https://aje-executive-db-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "aje-executive-db", storageBucket: "aje-executive-db.firebasestorage.app", messagingSenderId: "25421275822", appId: "1:25421275822:web:8de86422d025e2cd25c33f" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth(); const storage = firebase.storage(); const db = firebase.database();
@@ -179,32 +181,19 @@
         let currentUser = null; let draggedTaskKey = null; let boardData = {}; let currentEditKey = null;
 
         document.addEventListener("DOMContentLoaded", () => { setTimeout(() => { document.getElementById('loadingRings').style.opacity = '0'; document.getElementById('terminalText').style.opacity = '0'; setTimeout(() => { document.getElementById('finalLogo').style.opacity = '1'; document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)'; setTimeout(() => { document.getElementById('splashScreen').style.opacity = '0'; document.getElementById('mainApp').classList.remove('hidden'); setTimeout(() => { document.getElementById('mainApp').style.opacity = '1'; document.getElementById('splashScreen').style.display = 'none'; navigateTo('home'); }, 50); }, 1200); }, 300); }, 2800); });
+
         function toggleAuth() {
-            if (currentUser) {
-                auth.signOut();
-            } else {
-                // 먼저 화면이 안 넘어가는 Popup 방식으로 시도!
+            if (currentUser) { auth.signOut(); }
+            else {
                 auth.signInWithPopup(provider).catch((error) => {
-                    // 만약 폰에서 팝업을 차단했다면, 그때 Redirect 방식으로 우회!
-                    if (error.code === 'auth/popup-blocked') {
-                        auth.signInWithRedirect(provider);
-                    } else {
-                        alert("로그인 중 에러가 발생했습니다: " + error.message);
-                    }
+                    if (error.code === 'auth/popup-blocked') auth.signInWithRedirect(provider);
+                    else alert("로그인 에러: " + error.message);
                 });
             }
         }
 
-        // 💡 [패치 2] 리다이렉트로 돌아왔을 때, 잃어버린 증명서 강제로 낚아채기!
-        auth.getRedirectResult().then((result) => {
-            if (result.user) {
-                console.log("모바일 리다이렉트 로그인 성공!");
-            }
-        }).catch((error) => {
-            console.error("로그인 증명서 유실 에러:", error);
-        });
+        auth.getRedirectResult().catch(error => console.error(error));
 
-        // (이 아래부터는 기존 auth.onAuthStateChanged 로직 그대로 유지)
         auth.onAuthStateChanged((user) => {
             const authBtn = document.getElementById('authBtn'); const userInfoArea = document.getElementById('userInfoArea');
             if (user) {
@@ -217,47 +206,12 @@
             }
         });
 
+        // 💡 임원님이 주신 iframe 주소 완벽 유지
         const pages = {
-            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.3 배포 준비 완료</h3><p class="text-slate-500 text-center">좌측 하단의 숨겨진 Master Vault를 확인하시고 배포를 진행하십시오.</p></div></div>`,
-            'cloud': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto bg-slate-50 flex flex-col"><div class="mb-6"><h2 class="text-2xl font-bold text-slate-800">Mini Cloud Vault</h2><p class="text-slate-500 text-sm mt-1">드래그 앤 드롭으로 이미지와 영상을 저장하세요.</p></div><div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()" class="w-full h-40 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50 flex flex-col items-center justify-center text-indigo-400 cursor-pointer mb-8 relative hover:bg-indigo-100"><i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 pointer-events-none"></i><p class="font-bold pointer-events-none">클릭하거나 끌어다 놓으세요</p><input type="file" id="fileInput" class="hidden" accept="image/*,video/*" onchange="handleFileSelect(event)"><div id="progressContainer" class="absolute bottom-0 left-0 w-full h-1 bg-slate-200 rounded-b-2xl hidden overflow-hidden"><div id="uploadProgress" class="h-full bg-indigo-600 w-0 transition-all duration-300"></div></div></div><div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-slate-700">Saved Media</h3><button onclick="loadGallery()" class="text-xs text-indigo-500 font-bold"><i class="fa-solid fa-rotate-right"></i> 새로고침</button></div><div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-10"><p class="text-slate-400 text-sm col-span-full py-10">로그인 대기 중...</p></div></div>`,
-            'board': `<div class="w-full h-full p-8 animate-fade-in bg-slate-100 flex flex-col" id="kanbanContainer"><div class="flex justify-between items-center mb-6"><div><h2 class="text-2xl font-bold text-slate-800">Task Board</h2><p class="text-slate-500 text-sm mt-1">카드의 <i class="fa-solid fa-pen-to-square"></i> 버튼을 눌러 상세 정보를 적어보세요.</p></div><button onclick="addNewTask()" class="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-700 transition"><i class="fa-solid fa-plus mr-1"></i> 새 업무 등록</button></div><div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden pb-4"><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-circle-dot text-rose-400 mr-2"></i>계획 (To Do)</h3></div><div id="col-todo" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragover="allowDrop(event)" ondrop="dropTask(event, 'todo')"><p class="text-xs text-slate-400 text-center mt-5">로그인 해주세요...</p></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-spinner text-amber-500 mr-2"></i>진행 중 (Doing)</h3></div><div id="col-doing" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragover="allowDrop(event)" ondrop="dropTask(event, 'doing')"></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-check-circle text-emerald-500 mr-2"></i>완료 (Done)</h3></div><div id="col-done" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragover="allowDrop(event)" ondrop="dropTask(event, 'done')"></div></div></div></div>`,
-
-            // 🛡️ [NEW] Master Vault 다크 테마 HTML 
-            'vault': `
-                <div class="w-full h-full p-8 animate-fade-in bg-slate-900 text-slate-200 flex flex-col overflow-y-auto custom-scrollbar" id="vaultContainer">
-                    <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-5">
-                        <div>
-                            <h2 class="text-2xl font-black text-rose-500 flex items-center gap-3 tracking-wide"><i class="fa-solid fa-shield-halved"></i> SYSTEM VAULT</h2>
-                            <p class="text-slate-400 text-sm mt-2">최고 관리자(Executive Admin) 전용 데이터베이스 중앙 통제소입니다.</p>
-                        </div>
-                        <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/50 transition flex items-center gap-2 border border-emerald-500">
-                            <i class="fa-solid fa-file-csv text-lg"></i> DB 엑셀 추출 (CSV)
-                        </button>
-                    </div>
-                    
-                    <div class="flex-1 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col shadow-2xl">
-                        <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
-                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-database mr-2"></i>Task Database Log</span>
-                        </div>
-                        <div class="overflow-x-auto flex-1 custom-scrollbar">
-                            <table class="w-full text-left text-sm whitespace-nowrap">
-                                <thead class="bg-slate-900/80 text-slate-400 sticky top-0 z-10 backdrop-blur-sm">
-                                    <tr>
-                                        <th class="p-4 font-bold border-b border-slate-700">업무명 (Task)</th>
-                                        <th class="p-4 font-bold border-b border-slate-700">상태 (Status)</th>
-                                        <th class="p-4 font-bold border-b border-slate-700">생성일</th>
-                                        <th class="p-4 font-bold border-b border-slate-700">협력업체 / 비고</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="vaultTableBody" class="divide-y divide-slate-700/50">
-                                    <tr><td colspan="4" class="p-8 text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>보안 데이터를 불러오는 중...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            `,
-
+            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.4 가동 중</h3><p class="text-slate-500 text-center">모바일/탭 터치 드래그 안정화 패치가 적용되었습니다.</p></div></div>`,
+            'cloud': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto bg-slate-50 flex flex-col"><div class="mb-6"><h2 class="text-2xl font-bold text-slate-800">Mini Cloud Vault</h2><p class="text-slate-500 text-sm mt-1">이미지와 영상을 저장하세요.</p></div><div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()" class="w-full h-40 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50 flex flex-col items-center justify-center text-indigo-400 cursor-pointer mb-8 relative hover:bg-indigo-100"><i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 pointer-events-none"></i><p class="font-bold pointer-events-none">클릭하거나 끌어다 놓으세요</p><input type="file" id="fileInput" class="hidden" accept="image/*,video/*" onchange="handleFileSelect(event)"><div id="progressContainer" class="absolute bottom-0 left-0 w-full h-1 bg-slate-200 rounded-b-2xl hidden overflow-hidden"><div id="uploadProgress" class="h-full bg-indigo-600 w-0 transition-all duration-300"></div></div></div><div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-slate-700">Saved Media</h3><button onclick="loadGallery()" class="text-xs text-indigo-500 font-bold"><i class="fa-solid fa-rotate-right"></i> 새로고침</button></div><div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-10"><p class="text-slate-400 text-sm col-span-full py-10">로그인 대기 중...</p></div></div>`,
+            'board': `<div class="w-full h-full p-8 animate-fade-in bg-slate-100 flex flex-col" id="kanbanContainer"><div class="flex justify-between items-center mb-6"><div><h2 class="text-2xl font-bold text-slate-800">Task Board</h2><p class="text-slate-500 text-sm mt-1">카드를 길게(0.2초) 누르면 드래그할 수 있습니다.</p></div><button onclick="addNewTask()" class="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-700 transition"><i class="fa-solid fa-plus mr-1"></i> 새 업무</button></div><div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden pb-4"><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-circle-dot text-rose-400 mr-2"></i>계획 (To Do)</h3></div><div id="col-todo" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'todo')"><p class="text-xs text-slate-400 text-center mt-5">로그인 해주세요...</p></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-spinner text-amber-500 mr-2"></i>진행 중 (Doing)</h3></div><div id="col-doing" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'doing')"></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-check-circle text-emerald-500 mr-2"></i>완료 (Done)</h3></div><div id="col-done" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'done')"></div></div></div></div>`,
+            'vault': `<div class="w-full h-full p-8 animate-fade-in bg-slate-900 text-slate-200 flex flex-col overflow-y-auto custom-scrollbar" id="vaultContainer"><div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-5"><div><h2 class="text-2xl font-black text-rose-500 flex items-center gap-3 tracking-wide"><i class="fa-solid fa-shield-halved"></i> SYSTEM VAULT</h2><p class="text-slate-400 text-sm mt-2">최고 관리자 전용 통제소입니다.</p></div><button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-lg transition flex items-center gap-2 border border-emerald-500"><i class="fa-solid fa-file-csv text-lg"></i> DB 엑셀 추출</button></div><div class="flex-1 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col shadow-2xl"><div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-database mr-2"></i>Task Database Log</span></div><div class="overflow-x-auto flex-1 custom-scrollbar"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-900/80 text-slate-400 sticky top-0 z-10 backdrop-blur-sm"><tr><th class="p-4 font-bold border-b border-slate-700">업무명</th><th class="p-4 font-bold border-b border-slate-700">상태</th><th class="p-4 font-bold border-b border-slate-700">생성일</th><th class="p-4 font-bold border-b border-slate-700">비고</th></tr></thead><tbody id="vaultTableBody" class="divide-y divide-slate-700/50"><tr><td colspan="4" class="p-8 text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>데이터 불러오는 중...</td></tr></tbody></table></div></div></div>`,
             'diary': `<div class="w-full h-full animate-fade-in bg-white"><iframe src="https://nigimiz-ux.github.io/my-executive-tools/djdirary.html" class="w-full h-full border-none pt-1"></iframe></div>`,
             'voice': `<div class="w-full h-full animate-fade-in bg-[#131417]"><iframe src="https://nigimiz-ux.github.io/voice-studio/tts_app.html" class="w-full h-full border-none pt-1"></iframe></div>`,
             'tracker': `<div class="w-full h-full animate-fade-in bg-white"><iframe src="https://nigimiz-ux.github.io/running-tracker/index.html" class="w-full h-full border-none pt-1"></iframe></div>`,
@@ -267,136 +221,82 @@
         const pageTitles = { 'home': 'Dashboard Overview', 'cloud': 'Mini Cloud (Storage)', 'board': 'Workflow Board', 'vault': 'Master Vault (Admin)', 'diary': 'Strategic Diary', 'voice': 'Voice Studio V3', 'tracker': 'Shoe Tracker V1', 'leave': '연차 결제 시스템' };
 
         function navigateTo(pageId) {
-            // 1. 버튼 스타일 초기화 (기본 메뉴는 투명, 볼트는 검정)
             document.querySelectorAll('.nav-btn').forEach(btn => {
-                if (btn.id === 'nav-vault') {
-                    btn.className = "nav-btn w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-950 text-slate-500 hover:bg-rose-950 hover:text-rose-300 hover:border-rose-800 transition-all duration-300 border border-slate-800 group";
-                } else {
-                    btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300";
-                }
+                if (btn.id === 'nav-vault') { btn.className = "nav-btn w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-950 text-slate-500 hover:bg-rose-950 hover:text-rose-300 transition-all duration-300 border border-slate-800 group"; }
+                else { btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"; }
             });
 
-            // 2. 클릭한 버튼 활성화 (색상 변경)
             const activeBtn = document.getElementById('nav-' + pageId);
             if (activeBtn) {
-                if (pageId === 'vault') {
-                    activeBtn.classList.replace('bg-slate-950', 'bg-rose-900');
-                    activeBtn.classList.replace('text-slate-500', 'text-white');
-                    activeBtn.classList.replace('border-slate-800', 'border-rose-500');
-                } else {
-                    activeBtn.classList.replace('text-slate-300', 'text-white');
-                    activeBtn.classList.add('bg-indigo-600');
-                }
+                if (pageId === 'vault') { activeBtn.classList.replace('bg-slate-950', 'bg-rose-900'); activeBtn.classList.replace('text-slate-500', 'text-white'); activeBtn.classList.replace('border-slate-800', 'border-rose-500'); }
+                else { activeBtn.classList.replace('text-slate-300', 'text-white'); activeBtn.classList.add('bg-indigo-600'); }
             }
 
-            // 3. 화면 갈아 끼우기
             document.getElementById('pageTitle').innerText = pageTitles[pageId];
             document.getElementById('contentArea').innerHTML = pages[pageId];
 
-            // 4. 페이지 진입 시 DB 데이터 불러오기
             if (pageId === 'cloud') loadGallery();
             if (pageId === 'board') initKanban();
             if (pageId === 'vault') initVault();
 
-            // 💡 [모바일 패치] 모든 작업이 다 끝난 뒤 마지막으로 스크롤을 내립니다!
+            // 💡 [모바일 패치] 메뉴 클릭 시 아래 본문으로 스르륵 스크롤!
             if (window.innerWidth < 1024) {
                 document.querySelector('main').scrollIntoView({ behavior: 'smooth' });
             }
         }
 
-        // 🛡️ [NEW] Master Vault 데이터 테이블 로직
         function initVault() {
-            if (!currentUser) { document.getElementById('vaultTableBody').innerHTML = '<tr><td colspan="4" class="p-8 text-center text-rose-500 font-bold"><i class="fa-solid fa-lock mr-2"></i>접근 권한이 없습니다. (로그인 필요)</td></tr>'; return; }
-
-            // DB에서 최신 데이터를 한 번만 가져옵니다 (once)
+            if (!currentUser) { document.getElementById('vaultTableBody').innerHTML = '<tr><td colspan="4" class="p-8 text-center text-rose-500 font-bold"><i class="fa-solid fa-lock mr-2"></i>권한이 없습니다.</td></tr>'; return; }
             db.ref(`users/${currentUser.uid}/tasks`).once('value').then((snapshot) => {
-                const tbody = document.getElementById('vaultTableBody');
-                if (!tbody) return;
-
+                const tbody = document.getElementById('vaultTableBody'); if (!tbody) return;
                 boardData = snapshot.val() || {};
-
-                if (Object.keys(boardData).length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-500">저장된 데이터 로그가 없습니다.</td></tr>';
-                    return;
-                }
-
+                if (Object.keys(boardData).length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-500">데이터가 없습니다.</td></tr>'; return; }
                 tbody.innerHTML = '';
-                const statusHTML = { 'todo': '<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded-md text-xs font-bold border border-rose-500/30">계획 (To-Do)</span>', 'doing': '<span class="bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md text-xs font-bold border border-amber-500/30">진행 중 (Doing)</span>', 'done': '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md text-xs font-bold border border-emerald-500/30">완료 (Done)</span>' };
-
+                const statusHTML = { 'todo': '<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded-md text-xs font-bold">계획</span>', 'doing': '<span class="bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md text-xs font-bold">진행 중</span>', 'done': '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md text-xs font-bold">완료</span>' };
                 Object.keys(boardData).forEach(key => {
                     const task = boardData[key];
-                    const partnerText = task.partner ? `<i class="fa-solid fa-building text-slate-500 mr-1"></i>${task.partner}` : '<span class="text-slate-600">-</span>';
-
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-700/50 transition duration-150";
-                    tr.innerHTML = `
-                        <td class="p-4 font-bold text-slate-200">${task.text}</td>
-                        <td class="p-4">${statusHTML[task.status] || task.status}</td>
-                        <td class="p-4 text-slate-400 font-mono text-xs">${task.date}</td>
-                        <td class="p-4 text-slate-300 text-xs">${partnerText}</td>
-                    `;
+                    const tr = document.createElement('tr'); tr.className = "hover:bg-slate-700/50 transition";
+                    tr.innerHTML = `<td class="p-4 font-bold text-slate-200">${task.text}</td><td class="p-4">${statusHTML[task.status] || task.status}</td><td class="p-4 text-slate-400 font-mono text-xs">${task.date}</td><td class="p-4 text-slate-300 text-xs">${task.partner || '-'}</td>`;
                     tbody.appendChild(tr);
                 });
             });
         }
 
-        // 🛡️ [NEW] 엑셀 (CSV) 추출 마법 로직
         function exportToCSV() {
-            if (!currentUser || Object.keys(boardData).length === 0) return alert("추출할 데이터가 없습니다. 먼저 Task Board에 데이터를 입력해주세요.");
-
-            // 💡 엑셀에서 한글이 깨지지 않게 하는 마법의 코드 (\uFEFF)
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "업무명(Task),상태(Status),생성일,협력업체(Partner),기자재(Equipment),메모(Notes)\n"; // 엑셀 헤더(첫 줄)
-
+            if (!currentUser || Object.keys(boardData).length === 0) return alert("데이터가 없습니다.");
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF업무명,상태,생성일,협력업체,기자재,메모\n";
             Object.keys(boardData).forEach(key => {
-                const t = boardData[key];
-
-                // 쉼표나 줄바꿈이 있는 텍스트를 엑셀 셀 하나에 예쁘게 넣기 위한 처리
-                const escapeCSV = (str) => {
-                    if (!str) return "";
-                    return '"' + String(str).replace(/"/g, '""') + '"';
-                };
-
-                const statusName = t.status === 'todo' ? '계획(To-Do)' : (t.status === 'doing' ? '진행중(Doing)' : '완료(Done)');
-
-                // 엑셀 가로줄 완성
-                csvContent += `${escapeCSV(t.text)},${statusName},${escapeCSV(t.date)},${escapeCSV(t.partner)},${escapeCSV(t.equipment)},${escapeCSV(t.notes)}\n`;
+                const t = boardData[key]; const escapeCSV = (str) => '"' + String(str || "").replace(/"/g, '""') + '"';
+                csvContent += `${escapeCSV(t.text)},${t.status === 'todo' ? '계획' : (t.status === 'doing' ? '진행중' : '완료')},${escapeCSV(t.date)},${escapeCSV(t.partner)},${escapeCSV(t.equipment)},${escapeCSV(t.notes)}\n`;
             });
-
-            // 다운로드 실행
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `ProjectLEE_Admin_DB_${new Date().toISOString().slice(0, 10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `ProjectLEE_DB_${new Date().toISOString().slice(0, 10)}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
-        // 칸반 보드 로직 (그대로)
-        function initKanban() { if (!currentUser) { document.getElementById('col-todo').innerHTML = '<p class="text-xs text-rose-500 text-center mt-5 font-bold">먼저 로그인해 주세요!</p>'; return; } db.ref(`users/${currentUser.uid}/tasks`).on('value', (snapshot) => { const todoCol = document.getElementById('col-todo'); const doingCol = document.getElementById('col-doing'); const doneCol = document.getElementById('col-done'); if (!todoCol) return; todoCol.innerHTML = ''; doingCol.innerHTML = ''; doneCol.innerHTML = ''; boardData = snapshot.val() || {}; Object.keys(boardData).forEach(key => { const task = boardData[key]; const cardHTML = `<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-grab active:cursor-grabbing hover:shadow-md transition relative group" draggable="true" ondragstart="dragTask(event, '${key}')"><p class="text-sm font-bold text-slate-800 break-words mb-2 leading-tight">${task.text}</p>${(task.partner || task.equipment || task.notes) ? '<p class="text-[10px] text-indigo-500 mb-2 font-bold"><i class="fa-solid fa-message mr-1"></i>상세 내용 있음</p>' : ''}<div class="flex justify-between items-center text-[10px] text-slate-400 font-medium mt-3 pt-2 border-t border-slate-50"><span><i class="fa-regular fa-clock"></i> ${task.date}</span><div class="flex gap-2"><button onclick="openModal('${key}')" class="bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 w-6 h-6 rounded-md transition" title="상세정보 편집"><i class="fa-solid fa-pen-to-square text-xs"></i></button><button onclick="deleteTask('${key}')" class="bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-500 w-6 h-6 rounded-md transition" title="삭제"><i class="fa-solid fa-trash text-xs"></i></button></div></div></div>`; if (task.status === 'todo') todoCol.innerHTML += cardHTML; else if (task.status === 'doing') doingCol.innerHTML += cardHTML; else if (task.status === 'done') doneCol.innerHTML += cardHTML; }); }); }
+        // 💡 [핵심 패치] 드래그 앤 드롭 통신 로직 강화
+        function initKanban() { if (!currentUser) { document.getElementById('col-todo').innerHTML = '<p class="text-xs text-rose-500 text-center mt-5 font-bold">로그인해 주세요!</p>'; return; } db.ref(`users/${currentUser.uid}/tasks`).on('value', (snapshot) => { const todoCol = document.getElementById('col-todo'); const doingCol = document.getElementById('col-doing'); const doneCol = document.getElementById('col-done'); if (!todoCol) return; todoCol.innerHTML = ''; doingCol.innerHTML = ''; doneCol.innerHTML = ''; boardData = snapshot.val() || {}; Object.keys(boardData).forEach(key => { const task = boardData[key]; const cardHTML = `<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-grab active:cursor-grabbing hover:shadow-md transition relative group" draggable="true" ondragstart="dragTask(event, '${key}')"><p class="text-sm font-bold text-slate-800 break-words mb-2 leading-tight">${task.text}</p>${(task.partner || task.equipment || task.notes) ? '<p class="text-[10px] text-indigo-500 mb-2 font-bold"><i class="fa-solid fa-message mr-1"></i>상세 내용</p>' : ''}<div class="flex justify-between items-center text-[10px] text-slate-400 font-medium mt-3 pt-2 border-t border-slate-50"><span><i class="fa-regular fa-clock"></i> ${task.date}</span><div class="flex gap-2"><button onclick="openModal('${key}')" class="bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 w-6 h-6 rounded-md transition"><i class="fa-solid fa-pen-to-square text-xs"></i></button><button onclick="deleteTask('${key}')" class="bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-500 w-6 h-6 rounded-md transition"><i class="fa-solid fa-trash text-xs"></i></button></div></div></div>`; if (task.status === 'todo') todoCol.innerHTML += cardHTML; else if (task.status === 'doing') doingCol.innerHTML += cardHTML; else if (task.status === 'done') doneCol.innerHTML += cardHTML; }); }); }
         function openModal(key) { currentEditKey = key; const task = boardData[key]; document.getElementById('modalTitle').innerText = task.text; document.getElementById('modalPartner').value = task.partner || ''; document.getElementById('modalEquipment').value = task.equipment || ''; document.getElementById('modalNotes').value = task.notes || ''; const modal = document.getElementById('taskModal'); const modalBox = document.getElementById('taskModalBox'); modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modalBox.classList.remove('scale-95'); modalBox.classList.add('scale-100'); }, 10); }
         function closeModal() { const modal = document.getElementById('taskModal'); const modalBox = document.getElementById('taskModalBox'); modal.classList.add('opacity-0'); modalBox.classList.remove('scale-100'); modalBox.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); currentEditKey = null; }, 300); }
-        function saveTaskDetails() { if (!currentEditKey || !currentUser) return; db.ref(`users/${currentUser.uid}/tasks/${currentEditKey}`).update({ partner: document.getElementById('modalPartner').value, equipment: document.getElementById('modalEquipment').value, notes: document.getElementById('modalNotes').value }).then(() => closeModal()).catch(e => alert("저장 실패!")); }
+        function saveTaskDetails() { if (!currentEditKey || !currentUser) return; db.ref(`users/${currentUser.uid}/tasks/${currentEditKey}`).update({ partner: document.getElementById('modalPartner').value, equipment: document.getElementById('modalEquipment').value, notes: document.getElementById('modalNotes').value }).then(() => closeModal()); }
         function addNewTask() { if (!currentUser) return; const taskText = prompt("어떤 업무를 계획 중이신가요?"); if (!taskText || taskText.trim() === "") return; db.ref(`users/${currentUser.uid}/tasks`).push({ text: taskText, status: 'todo', date: new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) }); }
-        function deleteTask(taskKey) { if (confirm("이 업무를 완전히 삭제하시겠습니까?")) db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).remove(); }
-        function dragTask(e, taskKey) { draggedTaskKey = taskKey; e.dataTransfer.effectAllowed = "move"; } function allowDrop(e) { e.preventDefault(); } function dropTask(e, newStatus) { e.preventDefault(); if (draggedTaskKey && currentUser) { db.ref(`users/${currentUser.uid}/tasks/${draggedTaskKey}`).update({ status: newStatus }); draggedTaskKey = null; } }
+        function deleteTask(taskKey) { if (confirm("삭제하시겠습니까?")) db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).remove(); }
+
+        // 💡 [패치] 드롭 시 버그(튕김) 방지를 위해 allowDrop 강화
+        function dragTask(e, taskKey) { draggedTaskKey = taskKey; e.dataTransfer.effectAllowed = "move"; }
+        function allowDrop(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }
+        function dropTask(e, newStatus) {
+            e.preventDefault();
+            if (draggedTaskKey && currentUser) {
+                db.ref(`users/${currentUser.uid}/tasks/${draggedTaskKey}`).update({ status: newStatus });
+                draggedTaskKey = null;
+            }
+        }
 
         // 클라우드 로직 (그대로)
         function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('border-indigo-500', 'bg-indigo-100'); } function handleDragLeave(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-100'); } function handleDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-100'); const file = e.dataTransfer.files[0]; if (file) uploadFile(file); } function handleFileSelect(e) { const file = e.target.files[0]; if (file) uploadFile(file); }
         function uploadFile(file) { if (!currentUser) return; if (file.size > 5 * 1024 * 1024) return alert("5MB 이하만 가능합니다."); const uploadTask = storage.ref(`users/${currentUser.uid}/cloud/${Date.now()}_${file.name}`).put(file); document.getElementById('progressContainer').classList.remove('hidden'); uploadTask.on('state_changed', (snap) => { document.getElementById('uploadProgress').style.width = (snap.bytesTransferred / snap.totalBytes * 100) + '%'; }, (err) => { document.getElementById('progressContainer').classList.add('hidden'); }, () => { document.getElementById('uploadProgress').style.width = '0%'; document.getElementById('progressContainer').classList.add('hidden'); loadGallery(); }); }
-        function loadGallery() { const grid = document.getElementById('galleryGrid'); if (!grid) return; if (!currentUser) return; grid.innerHTML = '<p class="text-indigo-400 text-sm col-span-full py-10 animate-pulse">불러오는 중... ☁️</p>'; storage.ref(`users/${currentUser.uid}/cloud`).listAll().then((res) => { if (res.items.length === 0) { grid.innerHTML = '<p class="text-slate-400 text-sm col-span-full py-10">저장된 파일이 없습니다.</p>'; return; } grid.innerHTML = ''; res.items.reverse().forEach((itemRef) => { itemRef.getDownloadURL().then((url) => { const isVideo = itemRef.name.match(/\.(mp4|webm|ogg|mov)$/i); const card = document.createElement('div'); card.className = "relative group rounded-xl overflow-hidden bg-slate-200 aspect-square shadow-sm"; card.innerHTML = isVideo ? `<video src="${url}" class="w-full h-full object-cover" controls preload="metadata"></video>` : `<img src="${url}" class="w-full h-full object-cover transition duration-300 group-hover:scale-110">`; const delBtn = document.createElement('button'); delBtn.className = "absolute top-2 right-2 bg-rose-500 text-white w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center hover:bg-rose-600"; delBtn.innerHTML = '<i class="fa-solid fa-trash text-xs"></i>'; delBtn.onclick = () => { if (confirm("완전히 삭제하시겠습니까?")) itemRef.delete().then(() => loadGallery()); }; card.appendChild(delBtn); grid.appendChild(card); }); }); }); }
+        function loadGallery() { const grid = document.getElementById('galleryGrid'); if (!grid || !currentUser) return; grid.innerHTML = '<p class="text-indigo-400 text-sm col-span-full py-10 animate-pulse">불러오는 중... ☁️</p>'; storage.ref(`users/${currentUser.uid}/cloud`).listAll().then((res) => { if (res.items.length === 0) { grid.innerHTML = '<p class="text-slate-400 text-sm col-span-full py-10">저장된 파일이 없습니다.</p>'; return; } grid.innerHTML = ''; res.items.reverse().forEach((itemRef) => { itemRef.getDownloadURL().then((url) => { const isVideo = itemRef.name.match(/\.(mp4|webm|ogg|mov)$/i); const card = document.createElement('div'); card.className = "relative group rounded-xl overflow-hidden bg-slate-200 aspect-square shadow-sm"; card.innerHTML = isVideo ? `<video src="${url}" class="w-full h-full object-cover" controls preload="metadata"></video>` : `<img src="${url}" class="w-full h-full object-cover transition duration-300 group-hover:scale-110">`; const delBtn = document.createElement('button'); delBtn.className = "absolute top-2 right-2 bg-rose-500 text-white w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center hover:bg-rose-600"; delBtn.innerHTML = '<i class="fa-solid fa-trash text-xs"></i>'; delBtn.onclick = () => { if (confirm("삭제하시겠습니까?")) itemRef.delete().then(() => loadGallery()); }; card.appendChild(delBtn); grid.appendChild(card); }); }); }); }
     </script>
     <style>
-        /* 📱 탭/폰에서 꾹 눌렀을 때 팝업 뜨는 것 강제 방지 */
-        .cursor-grab {
-            -webkit-touch-callout: none !important;
-            -webkit-user-select: none !important;
-            user-select: none !important;
-            touch-action: pan-y !important;
-        }
-
-        /* 기존 스크롤바 및 애니메이션 유지 */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -453,23 +353,28 @@
             }
         }
 
-        /* 📱 [모바일 풀스크린 마법 패치] */
+        /* 📱 [핵심 패치 1] 모바일 풀스크린 보장 */
         @media (max-width: 1024px) {
-
-            /* 1. 알맹이 영역이 무조건 모바일 화면 세로 길이를 꽉 채우도록 강제 (상단 헤더 80px 제외) */
             #contentArea {
                 min-height: calc(100vh - 80px);
                 min-height: calc(100dvh - 80px);
-                /* 최신 폰 주소창 숨김 완벽 대응 */
             }
 
-            /* 2. iframe(다이어리, 트래커 등)과 빈 칸반 보드도 쪼그라들지 못하게 100% 쫙 펴기 */
             #contentArea>div,
             #contentArea iframe {
                 min-height: calc(100vh - 80px) !important;
                 min-height: calc(100dvh - 80px) !important;
                 height: 100% !important;
             }
+        }
+
+        /* 📱 [핵심 패치 2] 탭/폰에서 꾹 눌렀을 때 팝업 뜨는 것 방지 및 드래그 보장 */
+        .cursor-grab {
+            touch-action: none !important;
+            /* 탭이 딴생각 못하게 스크롤 등 모든 터치 액션 금지! */
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
         }
     </style>
 </body>
