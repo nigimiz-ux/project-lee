@@ -12,6 +12,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
 </head>
 
 <body
@@ -166,6 +167,11 @@
     </div>
 
     <script>
+        // 💡 [패치] 모바일 터치 드래그 통역기 가동 (0.2초 누르면 드래그 시작)
+        MobileDragDrop.polyfill({
+            holdToDrag: 200
+        });
+        window.addEventListener('touchmove', function () { }, { passive: false });
         const firebaseConfig = { apiKey: "AIzaSyDcQNHIUYSbJe8qnc4EqzRpGmQ4qufz7Ok", authDomain: "aje-executive-db.firebaseapp.com", databaseURL: "https://aje-executive-db-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "aje-executive-db", storageBucket: "aje-executive-db.firebasestorage.app", messagingSenderId: "25421275822", appId: "1:25421275822:web:8de86422d025e2cd25c33f" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth(); const storage = firebase.storage(); const db = firebase.database();
@@ -382,6 +388,14 @@
         function loadGallery() { const grid = document.getElementById('galleryGrid'); if (!grid) return; if (!currentUser) return; grid.innerHTML = '<p class="text-indigo-400 text-sm col-span-full py-10 animate-pulse">불러오는 중... ☁️</p>'; storage.ref(`users/${currentUser.uid}/cloud`).listAll().then((res) => { if (res.items.length === 0) { grid.innerHTML = '<p class="text-slate-400 text-sm col-span-full py-10">저장된 파일이 없습니다.</p>'; return; } grid.innerHTML = ''; res.items.reverse().forEach((itemRef) => { itemRef.getDownloadURL().then((url) => { const isVideo = itemRef.name.match(/\.(mp4|webm|ogg|mov)$/i); const card = document.createElement('div'); card.className = "relative group rounded-xl overflow-hidden bg-slate-200 aspect-square shadow-sm"; card.innerHTML = isVideo ? `<video src="${url}" class="w-full h-full object-cover" controls preload="metadata"></video>` : `<img src="${url}" class="w-full h-full object-cover transition duration-300 group-hover:scale-110">`; const delBtn = document.createElement('button'); delBtn.className = "absolute top-2 right-2 bg-rose-500 text-white w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center hover:bg-rose-600"; delBtn.innerHTML = '<i class="fa-solid fa-trash text-xs"></i>'; delBtn.onclick = () => { if (confirm("완전히 삭제하시겠습니까?")) itemRef.delete().then(() => loadGallery()); }; card.appendChild(delBtn); grid.appendChild(card); }); }); }); }
     </script>
     <style>
+        /* 📱 탭/폰에서 꾹 눌렀을 때 팝업 뜨는 것 강제 방지 */
+        .cursor-grab {
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            touch-action: pan-y !important;
+        }
+
         /* 기존 스크롤바 및 애니메이션 유지 */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
