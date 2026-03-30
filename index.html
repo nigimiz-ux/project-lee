@@ -168,9 +168,10 @@
     </div>
 
     <script>
-        // 💡 [핵심] 모바일/탭 터치 드래그 통역기 가동
+        // 💣 [핵심 패치] 안드로이드 탭 강제 통역 가동
         MobileDragDrop.polyfill({
-            holdToDrag: 200 // 0.2초간 꾹 누르면 드래그 시작
+            holdToDrag: 200,
+            forceApply: true // 안드로이드의 버그성 네이티브 드래그를 무시하고 100% 통역기로 강제 실행!
         });
         window.addEventListener('touchmove', function () { }, { passive: false });
 
@@ -206,9 +207,8 @@
             }
         });
 
-        // 💡 임원님이 주신 iframe 주소 완벽 유지
         const pages = {
-            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.4 가동 중</h3><p class="text-slate-500 text-center">모바일/탭 터치 드래그 안정화 패치가 적용되었습니다.</p></div></div>`,
+            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.5 가동 중</h3><p class="text-slate-500 text-center">갤럭시 탭 터치 드래그 안정화(Nuclear Patch)가 적용되었습니다.</p></div></div>`,
             'cloud': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto bg-slate-50 flex flex-col"><div class="mb-6"><h2 class="text-2xl font-bold text-slate-800">Mini Cloud Vault</h2><p class="text-slate-500 text-sm mt-1">이미지와 영상을 저장하세요.</p></div><div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()" class="w-full h-40 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50 flex flex-col items-center justify-center text-indigo-400 cursor-pointer mb-8 relative hover:bg-indigo-100"><i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 pointer-events-none"></i><p class="font-bold pointer-events-none">클릭하거나 끌어다 놓으세요</p><input type="file" id="fileInput" class="hidden" accept="image/*,video/*" onchange="handleFileSelect(event)"><div id="progressContainer" class="absolute bottom-0 left-0 w-full h-1 bg-slate-200 rounded-b-2xl hidden overflow-hidden"><div id="uploadProgress" class="h-full bg-indigo-600 w-0 transition-all duration-300"></div></div></div><div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-slate-700">Saved Media</h3><button onclick="loadGallery()" class="text-xs text-indigo-500 font-bold"><i class="fa-solid fa-rotate-right"></i> 새로고침</button></div><div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-10"><p class="text-slate-400 text-sm col-span-full py-10">로그인 대기 중...</p></div></div>`,
             'board': `<div class="w-full h-full p-8 animate-fade-in bg-slate-100 flex flex-col" id="kanbanContainer"><div class="flex justify-between items-center mb-6"><div><h2 class="text-2xl font-bold text-slate-800">Task Board</h2><p class="text-slate-500 text-sm mt-1">카드를 길게(0.2초) 누르면 드래그할 수 있습니다.</p></div><button onclick="addNewTask()" class="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-700 transition"><i class="fa-solid fa-plus mr-1"></i> 새 업무</button></div><div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden pb-4"><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-circle-dot text-rose-400 mr-2"></i>계획 (To Do)</h3></div><div id="col-todo" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'todo')"><p class="text-xs text-slate-400 text-center mt-5">로그인 해주세요...</p></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-spinner text-amber-500 mr-2"></i>진행 중 (Doing)</h3></div><div id="col-doing" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'doing')"></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-check-circle text-emerald-500 mr-2"></i>완료 (Done)</h3></div><div id="col-done" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'done')"></div></div></div></div>`,
             'vault': `<div class="w-full h-full p-8 animate-fade-in bg-slate-900 text-slate-200 flex flex-col overflow-y-auto custom-scrollbar" id="vaultContainer"><div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-5"><div><h2 class="text-2xl font-black text-rose-500 flex items-center gap-3 tracking-wide"><i class="fa-solid fa-shield-halved"></i> SYSTEM VAULT</h2><p class="text-slate-400 text-sm mt-2">최고 관리자 전용 통제소입니다.</p></div><button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-lg transition flex items-center gap-2 border border-emerald-500"><i class="fa-solid fa-file-csv text-lg"></i> DB 엑셀 추출</button></div><div class="flex-1 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col shadow-2xl"><div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-database mr-2"></i>Task Database Log</span></div><div class="overflow-x-auto flex-1 custom-scrollbar"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-900/80 text-slate-400 sticky top-0 z-10 backdrop-blur-sm"><tr><th class="p-4 font-bold border-b border-slate-700">업무명</th><th class="p-4 font-bold border-b border-slate-700">상태</th><th class="p-4 font-bold border-b border-slate-700">생성일</th><th class="p-4 font-bold border-b border-slate-700">비고</th></tr></thead><tbody id="vaultTableBody" class="divide-y divide-slate-700/50"><tr><td colspan="4" class="p-8 text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>데이터 불러오는 중...</td></tr></tbody></table></div></div></div>`,
@@ -239,10 +239,7 @@
             if (pageId === 'board') initKanban();
             if (pageId === 'vault') initVault();
 
-            // 💡 [모바일 패치] 메뉴 클릭 시 아래 본문으로 스르륵 스크롤!
-            if (window.innerWidth < 1024) {
-                document.querySelector('main').scrollIntoView({ behavior: 'smooth' });
-            }
+            if (window.innerWidth < 1024) { document.querySelector('main').scrollIntoView({ behavior: 'smooth' }); }
         }
 
         function initVault() {
@@ -272,24 +269,46 @@
             const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `ProjectLEE_DB_${new Date().toISOString().slice(0, 10)}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
-        // 💡 [핵심 패치] 드래그 앤 드롭 통신 로직 강화
-        function initKanban() { if (!currentUser) { document.getElementById('col-todo').innerHTML = '<p class="text-xs text-rose-500 text-center mt-5 font-bold">로그인해 주세요!</p>'; return; } db.ref(`users/${currentUser.uid}/tasks`).on('value', (snapshot) => { const todoCol = document.getElementById('col-todo'); const doingCol = document.getElementById('col-doing'); const doneCol = document.getElementById('col-done'); if (!todoCol) return; todoCol.innerHTML = ''; doingCol.innerHTML = ''; doneCol.innerHTML = ''; boardData = snapshot.val() || {}; Object.keys(boardData).forEach(key => { const task = boardData[key]; const cardHTML = `<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-grab active:cursor-grabbing hover:shadow-md transition relative group" draggable="true" ondragstart="dragTask(event, '${key}')"><p class="text-sm font-bold text-slate-800 break-words mb-2 leading-tight">${task.text}</p>${(task.partner || task.equipment || task.notes) ? '<p class="text-[10px] text-indigo-500 mb-2 font-bold"><i class="fa-solid fa-message mr-1"></i>상세 내용</p>' : ''}<div class="flex justify-between items-center text-[10px] text-slate-400 font-medium mt-3 pt-2 border-t border-slate-50"><span><i class="fa-regular fa-clock"></i> ${task.date}</span><div class="flex gap-2"><button onclick="openModal('${key}')" class="bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 w-6 h-6 rounded-md transition"><i class="fa-solid fa-pen-to-square text-xs"></i></button><button onclick="deleteTask('${key}')" class="bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-500 w-6 h-6 rounded-md transition"><i class="fa-solid fa-trash text-xs"></i></button></div></div></div>`; if (task.status === 'todo') todoCol.innerHTML += cardHTML; else if (task.status === 'doing') doingCol.innerHTML += cardHTML; else if (task.status === 'done') doneCol.innerHTML += cardHTML; }); }); }
+        function initKanban() {
+            if (!currentUser) { document.getElementById('col-todo').innerHTML = '<p class="text-xs text-rose-500 text-center mt-5 font-bold">로그인해 주세요!</p>'; return; }
+            db.ref(`users/${currentUser.uid}/tasks`).on('value', (snapshot) => {
+                const todoCol = document.getElementById('col-todo'); const doingCol = document.getElementById('col-doing'); const doneCol = document.getElementById('col-done');
+                if (!todoCol) return;
+                todoCol.innerHTML = ''; doingCol.innerHTML = ''; doneCol.innerHTML = '';
+                boardData = snapshot.val() || {};
+                Object.keys(boardData).forEach(key => {
+                    const task = boardData[key];
+
+                    // 💣 [핵심 패치] oncontextmenu="return false;" 를 추가하여 안드로이드 팝업을 원천 차단!
+                    const cardHTML = `<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-grab active:cursor-grabbing hover:shadow-md transition relative group" 
+                        draggable="true" 
+                        ondragstart="dragTask(event, '${key}')"
+                        oncontextmenu="return false;" 
+                        style="touch-action: none; -webkit-touch-callout: none;">
+                        <p class="text-sm font-bold text-slate-800 break-words mb-2 leading-tight pointer-events-none">${task.text}</p>
+                        ${(task.partner || task.equipment || task.notes) ? '<p class="text-[10px] text-indigo-500 mb-2 font-bold pointer-events-none"><i class="fa-solid fa-message mr-1"></i>상세 내용</p>' : ''}
+                        <div class="flex justify-between items-center text-[10px] text-slate-400 font-medium mt-3 pt-2 border-t border-slate-50">
+                            <span class="pointer-events-none"><i class="fa-regular fa-clock"></i> ${task.date}</span>
+                            <div class="flex gap-2">
+                                <button onclick="openModal('${key}')" class="bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 w-6 h-6 rounded-md transition relative z-10"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
+                                <button onclick="deleteTask('${key}')" class="bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-500 w-6 h-6 rounded-md transition relative z-10"><i class="fa-solid fa-trash text-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+                    if (task.status === 'todo') todoCol.innerHTML += cardHTML; else if (task.status === 'doing') doingCol.innerHTML += cardHTML; else if (task.status === 'done') doneCol.innerHTML += cardHTML;
+                });
+            });
+        }
+
         function openModal(key) { currentEditKey = key; const task = boardData[key]; document.getElementById('modalTitle').innerText = task.text; document.getElementById('modalPartner').value = task.partner || ''; document.getElementById('modalEquipment').value = task.equipment || ''; document.getElementById('modalNotes').value = task.notes || ''; const modal = document.getElementById('taskModal'); const modalBox = document.getElementById('taskModalBox'); modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modalBox.classList.remove('scale-95'); modalBox.classList.add('scale-100'); }, 10); }
         function closeModal() { const modal = document.getElementById('taskModal'); const modalBox = document.getElementById('taskModalBox'); modal.classList.add('opacity-0'); modalBox.classList.remove('scale-100'); modalBox.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); currentEditKey = null; }, 300); }
         function saveTaskDetails() { if (!currentEditKey || !currentUser) return; db.ref(`users/${currentUser.uid}/tasks/${currentEditKey}`).update({ partner: document.getElementById('modalPartner').value, equipment: document.getElementById('modalEquipment').value, notes: document.getElementById('modalNotes').value }).then(() => closeModal()); }
         function addNewTask() { if (!currentUser) return; const taskText = prompt("어떤 업무를 계획 중이신가요?"); if (!taskText || taskText.trim() === "") return; db.ref(`users/${currentUser.uid}/tasks`).push({ text: taskText, status: 'todo', date: new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) }); }
         function deleteTask(taskKey) { if (confirm("삭제하시겠습니까?")) db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).remove(); }
 
-        // 💡 [패치] 드롭 시 버그(튕김) 방지를 위해 allowDrop 강화
         function dragTask(e, taskKey) { draggedTaskKey = taskKey; e.dataTransfer.effectAllowed = "move"; }
         function allowDrop(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }
-        function dropTask(e, newStatus) {
-            e.preventDefault();
-            if (draggedTaskKey && currentUser) {
-                db.ref(`users/${currentUser.uid}/tasks/${draggedTaskKey}`).update({ status: newStatus });
-                draggedTaskKey = null;
-            }
-        }
+        function dropTask(e, newStatus) { e.preventDefault(); if (draggedTaskKey && currentUser) { db.ref(`users/${currentUser.uid}/tasks/${draggedTaskKey}`).update({ status: newStatus }); draggedTaskKey = null; } }
 
         // 클라우드 로직 (그대로)
         function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('border-indigo-500', 'bg-indigo-100'); } function handleDragLeave(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-100'); } function handleDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-100'); const file = e.dataTransfer.files[0]; if (file) uploadFile(file); } function handleFileSelect(e) { const file = e.target.files[0]; if (file) uploadFile(file); }
@@ -353,7 +372,6 @@
             }
         }
 
-        /* 📱 [핵심 패치 1] 모바일 풀스크린 보장 */
         @media (max-width: 1024px) {
             #contentArea {
                 min-height: calc(100vh - 80px);
@@ -368,10 +386,9 @@
             }
         }
 
-        /* 📱 [핵심 패치 2] 탭/폰에서 꾹 눌렀을 때 팝업 뜨는 것 방지 및 드래그 보장 */
+        /* 💣 [핵심 패치] 탭 브라우저의 모든 팝업, 스크롤, 선택 기능 원천 차단 */
         .cursor-grab {
             touch-action: none !important;
-            /* 탭이 딴생각 못하게 스크롤 등 모든 터치 액션 금지! */
             -webkit-touch-callout: none !important;
             -webkit-user-select: none !important;
             user-select: none !important;
