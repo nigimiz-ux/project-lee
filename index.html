@@ -15,6 +15,11 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
     <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#131417">
 </head>
 
 <body
@@ -181,8 +186,25 @@
         const provider = new firebase.auth.GoogleAuthProvider();
         let currentUser = null; let draggedTaskKey = null; let boardData = {}; let currentEditKey = null;
 
-        document.addEventListener("DOMContentLoaded", () => { setTimeout(() => { document.getElementById('loadingRings').style.opacity = '0'; document.getElementById('terminalText').style.opacity = '0'; setTimeout(() => { document.getElementById('finalLogo').style.opacity = '1'; document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)'; setTimeout(() => { document.getElementById('splashScreen').style.opacity = '0'; document.getElementById('mainApp').classList.remove('hidden'); setTimeout(() => { document.getElementById('mainApp').style.opacity = '1'; document.getElementById('splashScreen').style.display = 'none'; navigateTo('home'); }, 50); }, 1200); }, 300); }, 2800); });
+        // ⚡ [초고속 부팅 패치] 로딩 대기 시간 대폭 축소 (Total: 0.7초)
+        document.addEventListener("DOMContentLoaded", () => {
+            setTimeout(() => {
+                document.getElementById('loadingRings').style.opacity = '0';
+                document.getElementById('terminalText').style.opacity = '0';
+                document.getElementById('finalLogo').style.opacity = '1';
+                document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)';
 
+                setTimeout(() => {
+                    document.getElementById('splashScreen').style.opacity = '0';
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    setTimeout(() => {
+                        document.getElementById('mainApp').style.opacity = '1';
+                        document.getElementById('splashScreen').style.display = 'none';
+                        navigateTo('home');
+                    }, 50);
+                }, 400); // 🚀 로고 0.4초만 감상하고 바로 컷!
+            }, 300); // 🚀 텍스트 타이핑 0.3초만에 컷!
+        });
         function toggleAuth() {
             if (currentUser) { auth.signOut(); }
             else {
