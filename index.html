@@ -5,6 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Project LEE - Executive OS</title>
+
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#131417">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
@@ -15,11 +22,6 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
     <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <link rel="manifest" href="site.webmanifest">
-    <meta name="theme-color" content="#131417">
 </head>
 
 <body
@@ -82,6 +84,12 @@
                 <button onclick="navigateTo('board')" id="nav-board"
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
                         class="fa-solid fa-list-check w-5 text-amber-400"></i> Task Board</button>
+
+                <button onclick="navigateTo('voca')" id="nav-voca"
+                    class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300">
+                    <i class="fa-solid fa-language w-5 text-pink-400"></i> Voca Note
+                </button>
+
                 <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-8 mb-4 px-2">My Applications</p>
                 <button onclick="navigateTo('diary')" id="nav-diary"
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
@@ -173,11 +181,7 @@
     </div>
 
     <script>
-        // 💣 [핵심 패치] 안드로이드 탭 강제 통역 가동
-        MobileDragDrop.polyfill({
-            holdToDrag: 200,
-            forceApply: true // 안드로이드의 버그성 네이티브 드래그를 무시하고 100% 통역기로 강제 실행!
-        });
+        MobileDragDrop.polyfill({ holdToDrag: 200, forceApply: true });
         window.addEventListener('touchmove', function () { }, { passive: false });
 
         const firebaseConfig = { apiKey: "AIzaSyDcQNHIUYSbJe8qnc4EqzRpGmQ4qufz7Ok", authDomain: "aje-executive-db.firebaseapp.com", databaseURL: "https://aje-executive-db-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "aje-executive-db", storageBucket: "aje-executive-db.firebasestorage.app", messagingSenderId: "25421275822", appId: "1:25421275822:web:8de86422d025e2cd25c33f" };
@@ -186,14 +190,13 @@
         const provider = new firebase.auth.GoogleAuthProvider();
         let currentUser = null; let draggedTaskKey = null; let boardData = {}; let currentEditKey = null;
 
-        // ⚡ [초고속 부팅 패치] 로딩 대기 시간 대폭 축소 (Total: 0.7초)
+        // ⚡ 초고속 부팅 패치
         document.addEventListener("DOMContentLoaded", () => {
             setTimeout(() => {
                 document.getElementById('loadingRings').style.opacity = '0';
                 document.getElementById('terminalText').style.opacity = '0';
                 document.getElementById('finalLogo').style.opacity = '1';
                 document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)';
-
                 setTimeout(() => {
                     document.getElementById('splashScreen').style.opacity = '0';
                     document.getElementById('mainApp').classList.remove('hidden');
@@ -202,9 +205,10 @@
                         document.getElementById('splashScreen').style.display = 'none';
                         navigateTo('home');
                     }, 50);
-                }, 400); // 🚀 로고 0.4초만 감상하고 바로 컷!
-            }, 300); // 🚀 텍스트 타이핑 0.3초만에 컷!
+                }, 400);
+            }, 300);
         });
+
         function toggleAuth() {
             if (currentUser) { auth.signOut(); }
             else {
@@ -222,7 +226,10 @@
             if (user) {
                 currentUser = user; authBtn.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-power-off"></i> 로그아웃</span>`;
                 userInfoArea.innerHTML = `<img src="${user.photoURL || 'https://ui-avatars.com/api/?name=Lee'}" class="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white"><div><p class="text-sm font-bold text-white leading-tight">${user.displayName || 'Executive LEE'}</p><p class="text-xs text-slate-500">Executive Admin</p></div>`;
-                if (document.getElementById('galleryGrid')) loadGallery(); if (document.getElementById('kanbanContainer')) initKanban(); if (document.getElementById('vaultTableBody')) initVault();
+                if (document.getElementById('galleryGrid')) loadGallery();
+                if (document.getElementById('kanbanContainer')) initKanban();
+                if (document.getElementById('vaultTableBody')) initVault();
+                if (document.getElementById('vocaGrid')) initVoca(); // Voca 초기화
             } else {
                 currentUser = null; authBtn.innerHTML = `<img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> 로그인`;
                 userInfoArea.innerHTML = `<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xl">?</div><div><p class="text-sm font-bold text-slate-400 leading-tight">로그인 필요</p></div>`;
@@ -230,9 +237,37 @@
         });
 
         const pages = {
-            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.5 가동 중</h3><p class="text-slate-500 text-center">갤럭시 탭 터치 드래그 안정화(Nuclear Patch)가 적용되었습니다.</p></div></div>`,
+            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.6 가동 중</h3><p class="text-slate-500 text-center">신규 앱: Voca Note (영단어/문장 학습 스피커) 기능이 추가되었습니다.</p></div></div>`,
             'cloud': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto bg-slate-50 flex flex-col"><div class="mb-6"><h2 class="text-2xl font-bold text-slate-800">Mini Cloud Vault</h2><p class="text-slate-500 text-sm mt-1">이미지와 영상을 저장하세요.</p></div><div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()" class="w-full h-40 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50 flex flex-col items-center justify-center text-indigo-400 cursor-pointer mb-8 relative hover:bg-indigo-100"><i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 pointer-events-none"></i><p class="font-bold pointer-events-none">클릭하거나 끌어다 놓으세요</p><input type="file" id="fileInput" class="hidden" accept="image/*,video/*" onchange="handleFileSelect(event)"><div id="progressContainer" class="absolute bottom-0 left-0 w-full h-1 bg-slate-200 rounded-b-2xl hidden overflow-hidden"><div id="uploadProgress" class="h-full bg-indigo-600 w-0 transition-all duration-300"></div></div></div><div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-slate-700">Saved Media</h3><button onclick="loadGallery()" class="text-xs text-indigo-500 font-bold"><i class="fa-solid fa-rotate-right"></i> 새로고침</button></div><div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-10"><p class="text-slate-400 text-sm col-span-full py-10">로그인 대기 중...</p></div></div>`,
             'board': `<div class="w-full h-full p-8 animate-fade-in bg-slate-100 flex flex-col" id="kanbanContainer"><div class="flex justify-between items-center mb-6"><div><h2 class="text-2xl font-bold text-slate-800">Task Board</h2><p class="text-slate-500 text-sm mt-1">카드를 길게(0.2초) 누르면 드래그할 수 있습니다.</p></div><button onclick="addNewTask()" class="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-700 transition"><i class="fa-solid fa-plus mr-1"></i> 새 업무</button></div><div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden pb-4"><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-circle-dot text-rose-400 mr-2"></i>계획 (To Do)</h3></div><div id="col-todo" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'todo')"><p class="text-xs text-slate-400 text-center mt-5">로그인 해주세요...</p></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-spinner text-amber-500 mr-2"></i>진행 중 (Doing)</h3></div><div id="col-doing" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'doing')"></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-check-circle text-emerald-500 mr-2"></i>완료 (Done)</h3></div><div id="col-done" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'done')"></div></div></div></div>`,
+
+            // 🗣️ [NEW] Voca Note HTML 구조
+            'voca': `
+                <div class="w-full h-full p-8 animate-fade-in bg-slate-50 flex flex-col overflow-hidden" id="vocaContainer">
+                    <div class="flex justify-between items-center mb-6 shrink-0">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-800">Voca Note</h2>
+                            <p class="text-slate-500 text-sm mt-1">나만의 단어/문장을 등록하고 원어민 발음(TTS)으로 들어보세요.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 mb-6 shrink-0">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">단어 / 숙어 (Word)</label><input type="text" id="vocaWord" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:border-indigo-500 outline-none transition" placeholder="e.g. Implementation"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">뜻 (Meaning)</label><input type="text" id="vocaMeaning" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:border-indigo-500 outline-none transition" placeholder="e.g. 실행, 이행"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">예문 (Example Sentence)</label><input type="text" id="vocaExample" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:border-indigo-500 outline-none transition" placeholder="e.g. The implementation was successful."></div>
+                        </div>
+                        <div class="mt-4 flex justify-end">
+                            <button onclick="addVoca()" class="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-md transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> 카드 추가하기</button>
+                        </div>
+                    </div>
+
+                    <div id="vocaGrid" class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 overflow-y-auto custom-scrollbar pb-10 content-start">
+                        <p class="text-slate-400 text-sm col-span-full py-10 text-center">로그인 해주세요...</p>
+                    </div>
+                </div>
+            `,
+
             'vault': `<div class="w-full h-full p-8 animate-fade-in bg-slate-900 text-slate-200 flex flex-col overflow-y-auto custom-scrollbar" id="vaultContainer"><div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-5"><div><h2 class="text-2xl font-black text-rose-500 flex items-center gap-3 tracking-wide"><i class="fa-solid fa-shield-halved"></i> SYSTEM VAULT</h2><p class="text-slate-400 text-sm mt-2">최고 관리자 전용 통제소입니다.</p></div><button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-lg transition flex items-center gap-2 border border-emerald-500"><i class="fa-solid fa-file-csv text-lg"></i> DB 엑셀 추출</button></div><div class="flex-1 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col shadow-2xl"><div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-database mr-2"></i>Task Database Log</span></div><div class="overflow-x-auto flex-1 custom-scrollbar"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-900/80 text-slate-400 sticky top-0 z-10 backdrop-blur-sm"><tr><th class="p-4 font-bold border-b border-slate-700">업무명</th><th class="p-4 font-bold border-b border-slate-700">상태</th><th class="p-4 font-bold border-b border-slate-700">생성일</th><th class="p-4 font-bold border-b border-slate-700">비고</th></tr></thead><tbody id="vaultTableBody" class="divide-y divide-slate-700/50"><tr><td colspan="4" class="p-8 text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>데이터 불러오는 중...</td></tr></tbody></table></div></div></div>`,
             'diary': `<div class="w-full h-full animate-fade-in bg-white"><iframe src="https://nigimiz-ux.github.io/my-executive-tools/djdirary.html" class="w-full h-full border-none pt-1"></iframe></div>`,
             'voice': `<div class="w-full h-full animate-fade-in bg-[#131417]"><iframe src="https://nigimiz-ux.github.io/voice-studio/tts_app.html" class="w-full h-full border-none pt-1"></iframe></div>`,
@@ -240,7 +275,7 @@
             'leave': `<div class="w-full h-full animate-fade-in bg-white p-8 flex flex-col items-center justify-center text-center"><div class="w-32 h-32 rounded-full bg-slate-950 border-4 border-slate-700 shadow-2xl flex items-center justify-center mb-10"><i class="fa-solid fa-rocket text-7xl text-indigo-500"></i></div><h1 class="text-7xl font-extrabold text-indigo-100 tracking-tighter -mt-11">COMING SOON</h1></div>`
         };
 
-        const pageTitles = { 'home': 'Dashboard Overview', 'cloud': 'Mini Cloud (Storage)', 'board': 'Workflow Board', 'vault': 'Master Vault (Admin)', 'diary': 'Strategic Diary', 'voice': 'Voice Studio V3', 'tracker': 'Shoe Tracker V1', 'leave': '연차 결제 시스템' };
+        const pageTitles = { 'home': 'Dashboard Overview', 'cloud': 'Mini Cloud (Storage)', 'board': 'Workflow Board', 'voca': 'Voca Note (Flashcards)', 'vault': 'Master Vault (Admin)', 'diary': 'Strategic Diary', 'voice': 'Voice Studio V3', 'tracker': 'Shoe Tracker V1', 'leave': '연차 결제 시스템' };
 
         function navigateTo(pageId) {
             document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -260,8 +295,97 @@
             if (pageId === 'cloud') loadGallery();
             if (pageId === 'board') initKanban();
             if (pageId === 'vault') initVault();
+            if (pageId === 'voca') initVoca(); // Voca 데이터 불러오기
 
             if (window.innerWidth < 1024) { document.querySelector('main').scrollIntoView({ behavior: 'smooth' }); }
+        }
+
+        // 🗣️ [NEW] Voca Note 자바스크립트 로직 (DB 읽기, 쓰기, 삭제, TTS)
+        function initVoca() {
+            if (!currentUser) { document.getElementById('vocaGrid').innerHTML = '<p class="text-rose-500 font-bold col-span-full text-center mt-10">먼저 로그인해 주세요!</p>'; return; }
+            db.ref(`users/${currentUser.uid}/voca`).on('value', (snapshot) => {
+                const grid = document.getElementById('vocaGrid');
+                if (!grid) return;
+                grid.innerHTML = '';
+                const data = snapshot.val() || {};
+
+                if (Object.keys(data).length === 0) {
+                    grid.innerHTML = '<p class="text-slate-400 text-sm col-span-full text-center py-10">등록된 단어가 없습니다. 위에서 새로 추가해보세요!</p>'; return;
+                }
+
+                // 최근에 등록한 단어가 맨 앞으로 오도록 뒤집기 (reverse)
+                Object.keys(data).reverse().forEach(key => {
+                    const item = data[key];
+                    // 텍스트 속 따옴표(') 때문에 버튼이 고장나지 않도록 특수 처리
+                    const safeWord = item.word ? item.word.replace(/'/g, "\\'") : '';
+                    const safeExample = item.example ? item.example.replace(/'/g, "\\'") : '';
+
+                    const cardHTML = `
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition relative flex flex-col justify-between group">
+                            <div>
+                                <div class="flex justify-between items-start mb-2">
+                                    <h3 class="text-xl font-bold text-slate-800 break-words pr-2">${item.word}</h3>
+                                    <button onclick="speakText('${safeWord}')" class="text-indigo-500 bg-indigo-50 hover:bg-indigo-100 hover:scale-110 shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="발음 듣기">
+                                        <i class="fa-solid fa-volume-high text-sm"></i>
+                                    </button>
+                                </div>
+                                <p class="text-sm font-extrabold text-pink-500 mb-4">${item.meaning}</p>
+                                
+                                ${item.example ? `
+                                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 relative">
+                                    <p class="text-xs text-slate-600 italic leading-relaxed pr-8">"${item.example}"</p>
+                                    <button onclick="speakText('${safeExample}')" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 transition hover:scale-110" title="문장 듣기">
+                                        <i class="fa-solid fa-circle-play text-lg"></i>
+                                    </button>
+                                </div>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                <span class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar mr-1"></i>${item.date}</span>
+                                <button onclick="deleteVoca('${key}')" class="text-slate-300 hover:text-rose-500 transition opacity-0 group-hover:opacity-100">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    grid.innerHTML += cardHTML;
+                });
+            });
+        }
+
+        function addVoca() {
+            if (!currentUser) return alert("로그인 필요");
+            const word = document.getElementById('vocaWord').value.trim();
+            const meaning = document.getElementById('vocaMeaning').value.trim();
+            const example = document.getElementById('vocaExample').value.trim();
+
+            if (!word || !meaning) return alert("단어와 뜻은 필수입니다!");
+
+            db.ref(`users/${currentUser.uid}/voca`).push({
+                word: word,
+                meaning: meaning,
+                example: example,
+                date: new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+            }).then(() => {
+                document.getElementById('vocaWord').value = '';
+                document.getElementById('vocaMeaning').value = '';
+                document.getElementById('vocaExample').value = '';
+            });
+        }
+
+        function deleteVoca(key) {
+            if (confirm("이 카드를 삭제하시겠습니까?")) db.ref(`users/${currentUser.uid}/voca/${key}`).remove();
+        }
+
+        // 🗣️ 브라우저 내장 인공지능 스피커(TTS) 작동 로직
+        function speakText(text) {
+            if (!window.speechSynthesis) return alert("이 브라우저에서는 음성 듣기를 지원하지 않습니다.");
+            window.speechSynthesis.cancel(); // 겹쳐서 읽는 것 방지
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'en-US'; // 미국식 영어
+            msg.rate = 0.9;     // 살짝 느린 또박또박한 속도
+            window.speechSynthesis.speak(msg);
         }
 
         function initVault() {
@@ -300,8 +424,6 @@
                 boardData = snapshot.val() || {};
                 Object.keys(boardData).forEach(key => {
                     const task = boardData[key];
-
-                    // 💣 [핵심 패치] oncontextmenu="return false;" 를 추가하여 안드로이드 팝업을 원천 차단!
                     const cardHTML = `<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-grab active:cursor-grabbing hover:shadow-md transition relative group" 
                         draggable="true" 
                         ondragstart="dragTask(event, '${key}')"
@@ -332,7 +454,6 @@
         function allowDrop(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }
         function dropTask(e, newStatus) { e.preventDefault(); if (draggedTaskKey && currentUser) { db.ref(`users/${currentUser.uid}/tasks/${draggedTaskKey}`).update({ status: newStatus }); draggedTaskKey = null; } }
 
-        // 클라우드 로직 (그대로)
         function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('border-indigo-500', 'bg-indigo-100'); } function handleDragLeave(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-100'); } function handleDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-100'); const file = e.dataTransfer.files[0]; if (file) uploadFile(file); } function handleFileSelect(e) { const file = e.target.files[0]; if (file) uploadFile(file); }
         function uploadFile(file) { if (!currentUser) return; if (file.size > 5 * 1024 * 1024) return alert("5MB 이하만 가능합니다."); const uploadTask = storage.ref(`users/${currentUser.uid}/cloud/${Date.now()}_${file.name}`).put(file); document.getElementById('progressContainer').classList.remove('hidden'); uploadTask.on('state_changed', (snap) => { document.getElementById('uploadProgress').style.width = (snap.bytesTransferred / snap.totalBytes * 100) + '%'; }, (err) => { document.getElementById('progressContainer').classList.add('hidden'); }, () => { document.getElementById('uploadProgress').style.width = '0%'; document.getElementById('progressContainer').classList.add('hidden'); loadGallery(); }); }
         function loadGallery() { const grid = document.getElementById('galleryGrid'); if (!grid || !currentUser) return; grid.innerHTML = '<p class="text-indigo-400 text-sm col-span-full py-10 animate-pulse">불러오는 중... ☁️</p>'; storage.ref(`users/${currentUser.uid}/cloud`).listAll().then((res) => { if (res.items.length === 0) { grid.innerHTML = '<p class="text-slate-400 text-sm col-span-full py-10">저장된 파일이 없습니다.</p>'; return; } grid.innerHTML = ''; res.items.reverse().forEach((itemRef) => { itemRef.getDownloadURL().then((url) => { const isVideo = itemRef.name.match(/\.(mp4|webm|ogg|mov)$/i); const card = document.createElement('div'); card.className = "relative group rounded-xl overflow-hidden bg-slate-200 aspect-square shadow-sm"; card.innerHTML = isVideo ? `<video src="${url}" class="w-full h-full object-cover" controls preload="metadata"></video>` : `<img src="${url}" class="w-full h-full object-cover transition duration-300 group-hover:scale-110">`; const delBtn = document.createElement('button'); delBtn.className = "absolute top-2 right-2 bg-rose-500 text-white w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center hover:bg-rose-600"; delBtn.innerHTML = '<i class="fa-solid fa-trash text-xs"></i>'; delBtn.onclick = () => { if (confirm("삭제하시겠습니까?")) itemRef.delete().then(() => loadGallery()); }; card.appendChild(delBtn); grid.appendChild(card); }); }); }); }
@@ -408,7 +529,6 @@
             }
         }
 
-        /* 💣 [핵심 패치] 탭 브라우저의 모든 팝업, 스크롤, 선택 기능 원천 차단 */
         .cursor-grab {
             touch-action: none !important;
             -webkit-touch-callout: none !important;
