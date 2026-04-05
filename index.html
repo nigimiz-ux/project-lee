@@ -180,7 +180,7 @@
 
         const firebaseConfig = { apiKey: "AIzaSyDcQNHIUYSbJe8qnc4EqzRpGmQ4qufz7Ok", authDomain: "aje-executive-db.firebaseapp.com", databaseURL: "https://aje-executive-db-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "aje-executive-db", storageBucket: "aje-executive-db.firebasestorage.app", messagingSenderId: "25421275822", appId: "1:25421275822:web:8de86422d025e2cd25c33f" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth(); const storage = firebase.storage(); const db = firebase.database();
+        const auth = firebase.auth(); const storage = firebase.storage(); const db = firebase.app().database("https://aje-executive-db-default-rtdb.firebaseio.com/");
         const provider = new firebase.auth.GoogleAuthProvider();
 
         let currentUser = null; let draggedTaskKey = null; let boardData = {}; let vocaData = {}; let currentEditKey = null;
