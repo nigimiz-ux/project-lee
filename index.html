@@ -85,20 +85,20 @@
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
                         class="fa-solid fa-list-check w-5 text-amber-400"></i> Task Board</button>
 
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-8 mb-4 px-2">My Applications</p>
                 <button onclick="navigateTo('langstudio')" id="nav-langstudio"
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
                         class="fa-solid fa-graduation-cap w-5 text-purple-400"></i> Lang Studio</button>
-
-                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-8 mb-4 px-2">My Applications</p>
                 <button onclick="navigateTo('diary')" id="nav-diary"
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
                         class="fa-solid fa-book w-5 text-emerald-400"></i> Strategic Diary</button>
                 <button onclick="navigateTo('tracker')" id="nav-tracker"
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
                         class="fa-solid fa-shoe-prints w-5 text-orange-400"></i> Shoe Tracker</button>
-                <button onclick="navigateTo('leave')" id="nav-leave"
+
+                <button onclick="window.open('https://nigimiz-ux.github.io/juns-works-way/', '_blank')"
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
-                        class="fa-solid fa-rocket w-5 text-blue-400"></i> 연차 결제</button>
+                        class="fa-solid fa-rocket w-5 text-blue-400"></i> Work's Way (사내망)</button>
             </nav>
 
             <div class="px-4 py-2 flex-shrink-0 border-t border-slate-800 mt-auto">
@@ -204,14 +204,14 @@
         });
 
         // ==========================================
-        // 🚀 UI 템플릿 정의 (Lang Studio 통합판)
+        // 🚀 UI 템플릿 정의 
         // ==========================================
         const pages = {
-            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.8 가동 중</h3><p class="text-slate-500 text-center">Lang Studio(뉴스+단어장 통합)가 탑재되었습니다.</p></div></div>`,
+            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.9 가동 중</h3><p class="text-slate-500 text-center">Lang Studio 자연스러운 TTS 재생 패치가 적용되었습니다.</p></div></div>`,
             'cloud': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto bg-slate-50 flex flex-col"><div class="mb-6"><h2 class="text-2xl font-bold text-slate-800">Mini Cloud Vault</h2><p class="text-slate-500 text-sm mt-1">이미지와 영상을 저장하세요.</p></div><div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()" class="w-full h-40 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50 flex flex-col items-center justify-center text-indigo-400 cursor-pointer mb-8 relative hover:bg-indigo-100"><i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 pointer-events-none"></i><p class="font-bold pointer-events-none">클릭하거나 끌어다 놓으세요</p><input type="file" id="fileInput" class="hidden" accept="image/*,video/*" onchange="handleFileSelect(event)"><div id="progressContainer" class="absolute bottom-0 left-0 w-full h-1 bg-slate-200 rounded-b-2xl hidden overflow-hidden"><div id="uploadProgress" class="h-full bg-indigo-600 w-0 transition-all duration-300"></div></div></div><div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-slate-700">Saved Media</h3><button onclick="loadGallery()" class="text-xs text-indigo-500 font-bold"><i class="fa-solid fa-rotate-right"></i> 새로고침</button></div><div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-10"><p class="text-slate-400 text-sm col-span-full py-10">로그인 대기 중...</p></div></div>`,
             'board': `<div class="w-full h-full p-8 animate-fade-in bg-slate-100 flex flex-col" id="kanbanContainer"><div class="flex justify-between items-center mb-6"><div><h2 class="text-2xl font-bold text-slate-800">Task Board</h2><p class="text-slate-500 text-sm mt-1">카드를 길게(0.2초) 누르면 드래그할 수 있습니다.</p></div><button onclick="addNewTask()" class="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-700 transition"><i class="fa-solid fa-plus mr-1"></i> 새 업무</button></div><div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden pb-4"><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-circle-dot text-rose-400 mr-2"></i>계획 (To Do)</h3></div><div id="col-todo" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'todo')"><p class="text-xs text-slate-400 text-center mt-5">로그인 해주세요...</p></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-spinner text-amber-500 mr-2"></i>진행 중 (Doing)</h3></div><div id="col-doing" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'doing')"></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-check-circle text-emerald-500 mr-2"></i>완료 (Done)</h3></div><div id="col-done" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'done')"></div></div></div></div>`,
 
-            // 🎙️ Lang Studio 통합 UI (원문 링크 & 채널 탭 패치)
+            // 🎙️ Lang Studio
             'langstudio': `
                 <div class="w-full h-full p-8 animate-fade-in bg-slate-50 flex flex-col overflow-hidden" id="langStudioContainer">
                     <div class="flex justify-between items-center mb-6 shrink-0">
@@ -286,8 +286,7 @@
 
             'vault': `<div class="w-full h-full p-8 animate-fade-in bg-slate-900 text-slate-200 flex flex-col overflow-y-auto custom-scrollbar" id="vaultContainer"><div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-5"><div><h2 class="text-2xl font-black text-rose-500 flex items-center gap-3 tracking-wide"><i class="fa-solid fa-shield-halved"></i> SYSTEM VAULT</h2><p class="text-slate-400 text-sm mt-2">최고 관리자 전용 통제소입니다.</p></div><button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-lg transition flex items-center gap-2 border border-emerald-500"><i class="fa-solid fa-file-csv text-lg"></i> DB 엑셀 추출</button></div><div class="flex-1 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col shadow-2xl"><div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-database mr-2"></i>Task Database Log</span></div><div class="overflow-x-auto flex-1 custom-scrollbar"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-900/80 text-slate-400 sticky top-0 z-10 backdrop-blur-sm"><tr><th class="p-4 font-bold border-b border-slate-700">업무명</th><th class="p-4 font-bold border-b border-slate-700">상태</th><th class="p-4 font-bold border-b border-slate-700">생성일</th><th class="p-4 font-bold border-b border-slate-700">비고</th></tr></thead><tbody id="vaultTableBody" class="divide-y divide-slate-700/50"><tr><td colspan="4" class="p-8 text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>데이터 불러오는 중...</td></tr></tbody></table></div></div></div>`,
             'diary': `<div class="w-full h-full animate-fade-in bg-white"><iframe src="https://nigimiz-ux.github.io/my-executive-tools/djdirary.html" class="w-full h-full border-none pt-1"></iframe></div>`,
-            'tracker': `<div class="w-full h-full animate-fade-in bg-white"><iframe src="https://nigimiz-ux.github.io/running-tracker/index.html" class="w-full h-full border-none pt-1"></iframe></div>`,
-            'leave': `<div class="w-full h-full animate-fade-in bg-white p-8 flex flex-col items-center justify-center text-center"><div class="w-32 h-32 rounded-full bg-slate-950 border-4 border-slate-700 shadow-2xl flex items-center justify-center mb-10"><i class="fa-solid fa-rocket text-7xl text-indigo-500"></i></div><h1 class="text-7xl font-extrabold text-indigo-100 tracking-tighter -mt-11">COMING SOON</h1></div>`
+            'tracker': `<div class="w-full h-full animate-fade-in bg-white"><iframe src="https://nigimiz-ux.github.io/running-tracker/index.html" class="w-full h-full border-none pt-1"></iframe></div>`
         };
 
         const pageTitles = {
@@ -297,8 +296,7 @@
             'langstudio': 'Lang Studio (Voice & Voca)',
             'vault': 'Master Vault (Admin)',
             'diary': 'Strategic Diary',
-            'tracker': 'Shoe Tracker V1',
-            'leave': '연차 결제 시스템'
+            'tracker': 'Shoe Tracker V1'
         };
 
         function navigateTo(pageId) {
@@ -323,7 +321,7 @@
         }
 
         // ==========================================
-        // 🎙️ Lang Studio 신규 로직 (Voice & Voca)
+        // 🎙️ Lang Studio 로직
         // ==========================================
         function initLangStudio() {
             loadNews();
@@ -363,7 +361,7 @@
             loadNews();
         };
 
-        // 🚨 뉴스 호출 및 원문 버튼 부활
+        // 🚨 뉴스 호출 및 원문 버튼
         async function loadNews() {
             const newsDiv = document.getElementById('news-list');
             if (!newsDiv) return;
@@ -414,44 +412,56 @@
             }
         }
 
-        // 보이스 리딩 및 하이라이팅 로직
+        // 🚨 보이스 리딩 및 갭(Gap) 제거 로직 (Queue 방식)
         const synth = window.speechSynthesis;
         let sentences = [];
-        let currentIdx = 0;
 
         window.speakText = () => {
             const text = document.getElementById('scriptHighlight').innerText.trim();
             if (!text) return;
-            synth.cancel();
+            synth.cancel(); // 진행 중인 음성 즉시 취소
+
+            // 문장 단위로 나누기
             sentences = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
-            currentIdx = 0;
-            playSentence(0);
-        };
 
-        function playSentence(idx) {
-            if (idx >= sentences.length) { stopText(); return; }
-            currentIdx = idx;
+            // 1. 화면에 하이라이트용 span 태그 미리 세팅
             const el = document.getElementById('scriptHighlight');
+            el.innerHTML = sentences.map((s, i) => `<span class="transition-colors duration-200 cursor-pointer rounded px-1" id="s-${i}">${s}</span>`).join(' ');
 
-            // 현재 문장 하이라이팅
-            el.innerHTML = sentences.map((s, i) => `<span class="transition-colors duration-200 cursor-pointer rounded px-1 ${i === idx ? 'bg-indigo-100 text-indigo-700' : ''}" id="s-${i}">${s}</span>`).join(' ');
+            // 2. 끊김(Gap) 없이 읽기 위해 모든 문장을 한 번에 Queue에 때려 넣기
+            sentences.forEach((s, i) => {
+                const utter = new SpeechSynthesisUtterance(s);
+                utter.lang = 'en-US';
+                utter.rate = 0.9;
 
-            const activeSentence = document.getElementById('s-' + idx);
-            if (activeSentence) activeSentence.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            document.getElementById('progressFill').style.width = `${((idx + 1) / sentences.length) * 100}%`;
+                // 3. 각 문장이 '실제로 스피커에서 나오기 시작할 때' 하이라이트를 이동시킴
+                utter.onstart = () => {
+                    // 이전 하이라이트 지우기
+                    document.querySelectorAll('#scriptHighlight span').forEach(span => {
+                        span.classList.remove('bg-indigo-100', 'text-indigo-700');
+                    });
 
-            const utter = new SpeechSynthesisUtterance(sentences[idx]);
-            utter.lang = 'en-US'; utter.rate = 0.9;
-            utter.onend = () => playSentence(idx + 1);
-            synth.speak(utter);
-        }
+                    // 현재 문장 칠하기 및 스크롤
+                    const activeSentence = document.getElementById('s-' + i);
+                    if (activeSentence) {
+                        activeSentence.classList.add('bg-indigo-100', 'text-indigo-700');
+                        activeSentence.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    // 프로그레스 바 채우기
+                    document.getElementById('progressFill').style.width = `${((i + 1) / sentences.length) * 100}%`;
+                };
+
+                // 브라우저 음성 엔진에 밀어넣기 (자동으로 연속 재생됨)
+                synth.speak(utter);
+            });
+        };
 
         window.pauseResume = () => synth.paused ? synth.resume() : synth.pause();
         window.stopText = () => { synth.cancel(); document.getElementById('progressFill').style.width = '0%'; };
 
 
         // ==========================================
-        // 📚 Voca Note 기존 핵심 로직 (보관함 등 100% 유지)
+        // 📚 Voca Note
         // ==========================================
         let isBulkMode = false;
         let currentVocaTab = 'learning';
