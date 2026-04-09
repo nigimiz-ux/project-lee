@@ -204,7 +204,7 @@
         });
 
         const pages = {
-            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.9.1 가동 중</h3><p class="text-slate-500 text-center">자연스러운 TTS 재생 패치 및 뉴스 파싱이 완료되었습니다.</p></div></div>`,
+            'home': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto"><div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-24"><i class="fa-brands fa-space-awesome text-7xl text-indigo-100 mb-6"></i><h3 class="text-2xl font-bold text-slate-700 mb-3">Project LEE V2.9.2 가동 중</h3><p class="text-slate-500 text-center">Voice Studio 갭 제거 패치 및 TechCrunch·NYT 뉴스 파싱 개선 완료.</p></div></div>`,
             'cloud': `<div class="w-full h-full p-8 animate-fade-in overflow-y-auto bg-slate-50 flex flex-col"><div class="mb-6"><h2 class="text-2xl font-bold text-slate-800">Mini Cloud Vault</h2><p class="text-slate-500 text-sm mt-1">이미지와 영상을 저장하세요.</p></div><div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()" class="w-full h-40 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50 flex flex-col items-center justify-center text-indigo-400 cursor-pointer mb-8 relative hover:bg-indigo-100"><i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 pointer-events-none"></i><p class="font-bold pointer-events-none">클릭하거나 끌어다 놓으세요</p><input type="file" id="fileInput" class="hidden" accept="image/*,video/*" onchange="handleFileSelect(event)"><div id="progressContainer" class="absolute bottom-0 left-0 w-full h-1 bg-slate-200 rounded-b-2xl hidden overflow-hidden"><div id="uploadProgress" class="h-full bg-indigo-600 w-0 transition-all duration-300"></div></div></div><div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-slate-700">Saved Media</h3><button onclick="loadGallery()" class="text-xs text-indigo-500 font-bold"><i class="fa-solid fa-rotate-right"></i> 새로고침</button></div><div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-10"><p class="text-slate-400 text-sm col-span-full py-10">로그인 대기 중...</p></div></div>`,
             'board': `<div class="w-full h-full p-8 animate-fade-in bg-slate-100 flex flex-col" id="kanbanContainer"><div class="flex justify-between items-center mb-6"><div><h2 class="text-2xl font-bold text-slate-800">Task Board</h2><p class="text-slate-500 text-sm mt-1">카드를 길게(0.2초) 누르면 드래그할 수 있습니다.</p></div><button onclick="addNewTask()" class="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-700 transition"><i class="fa-solid fa-plus mr-1"></i> 새 업무</button></div><div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden pb-4"><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-circle-dot text-rose-400 mr-2"></i>계획 (To Do)</h3></div><div id="col-todo" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'todo')"><p class="text-xs text-slate-400 text-center mt-5">로그인 해주세요...</p></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-spinner text-amber-500 mr-2"></i>진행 중 (Doing)</h3></div><div id="col-doing" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'doing')"></div></div><div class="bg-slate-200/50 rounded-xl flex flex-col overflow-hidden border border-slate-200"><div class="bg-slate-200 p-3 border-b border-slate-300"><h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-check-circle text-emerald-500 mr-2"></i>완료 (Done)</h3></div><div id="col-done" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar" ondragenter="allowDrop(event)" ondragover="allowDrop(event)" ondrop="dropTask(event, 'done')"></div></div></div></div>`,
 
@@ -335,12 +335,12 @@
             document.getElementById('l-tab-voca').className = tab === 'voca' ? "pb-2 text-sm font-bold border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2" : "pb-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition flex items-center gap-2";
         }
 
-        // 🚨 수정된 3사 뉴스 (Reuters -> NY Times)
+        // ✅ 3사 뉴스 (BBC / TechCrunch / NY Times) - rss2json + allorigins 폴백
         let currentNewsSource = 'bbc';
         const NEWS_FEEDS = {
             'bbc': 'https://feeds.bbci.co.uk/news/world/rss.xml',
             'techcrunch': 'https://techcrunch.com/feed/',
-            'nytimes': 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml'
+            'nytimes': 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml'
         };
 
         window.changeNewsSource = function (src) {
@@ -348,57 +348,87 @@
             ['bbc', 'techcrunch', 'nytimes'].forEach(s => {
                 const btn = document.getElementById('ns-' + s);
                 if (btn) {
-                    if (s === src) {
-                        btn.className = "text-xs font-bold px-2 py-1 rounded bg-indigo-100 text-indigo-700 transition";
-                    } else {
-                        btn.className = "text-xs font-bold px-2 py-1 rounded text-slate-400 hover:text-slate-600 transition";
-                    }
+                    btn.className = s === src
+                        ? "text-xs font-bold px-2 py-1 rounded bg-indigo-100 text-indigo-700 transition"
+                        : "text-xs font-bold px-2 py-1 rounded text-slate-400 hover:text-slate-600 transition";
                 }
             });
             loadNews();
         };
 
+        // rss2json으로 파싱 (CDATA·Atom·RSS2 모두 처리, CORS 없음)
+        async function fetchViaRss2json(rssUrl) {
+            const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=10`;
+            const res = await fetch(api);
+            if (!res.ok) throw new Error('rss2json error');
+            const data = await res.json();
+            if (data.status !== 'ok' || !data.items?.length) throw new Error('No items');
+            return data.items.map(item => ({
+                title: item.title || '',
+                desc: (item.description || item.content || '')
+                    .replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().slice(0, 200),
+                link: item.link || '#'
+            }));
+        }
+
+        // 폴백: allorigins 방식 (BBC처럼 직접 XML 파싱)
+        async function fetchViaAllorigins(rssUrl) {
+            const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`);
+            const data = await res.json();
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(data.contents, "text/xml");
+            const items = xml.querySelectorAll("item, entry");
+            if (!items.length) throw new Error('No items');
+            return Array.from(items).slice(0, 10).map(item => {
+                const title = item.querySelector("title")?.textContent || '';
+                let desc = item.querySelector("description, summary")?.textContent || '';
+                desc = desc.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().slice(0, 200);
+                const linkEl = item.querySelector("link");
+                const link = (linkEl?.getAttribute('href') || linkEl?.textContent || '#').trim();
+                return { title, desc, link };
+            });
+        }
+
+        function renderNewsItems(items) {
+            return items.map(({ title, desc, link }) => {
+                const ct = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const cd = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                return `
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition group flex flex-col gap-3">
+                    <div class="cursor-pointer" onclick="setScriptText('${ct}', '${cd}')">
+                        <h4 class="font-bold text-slate-800 text-sm mb-1 group-hover:text-indigo-600 transition">${title}</h4>
+                        <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">${desc}</p>
+                    </div>
+                    <div class="flex justify-between items-center mt-1 pt-3 border-t border-slate-200">
+                        <button class="text-xs font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition px-3 py-1.5 rounded-md"
+                            onclick="setScriptText('${ct}', '${cd}')">🔊 대본으로</button>
+                        <a href="${link}" target="_blank"
+                            class="text-xs font-bold text-slate-400 hover:text-slate-700 transition flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> 원문 보기</a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
         async function loadNews() {
             const newsDiv = document.getElementById('news-list');
             if (!newsDiv) return;
             newsDiv.innerHTML = '<p class="text-sm text-slate-500 text-center mt-10"><i class="fa-solid fa-spinner fa-spin mr-2"></i>뉴스를 불러오는 중...</p>';
+            const rssUrl = NEWS_FEEDS[currentNewsSource];
             try {
-                const rssUrl = NEWS_FEEDS[currentNewsSource];
-                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`);
-                const data = await res.json();
-                const parser = new DOMParser();
-                const xml = parser.parseFromString(data.contents, "text/xml");
-
-                // TechCrunch 등의 구조를 위해 item과 entry를 모두 잡음
-                const items = xml.querySelectorAll("item, entry");
-
-                if (items.length === 0) throw new Error("No news items found.");
-
-                newsDiv.innerHTML = Array.from(items).slice(0, 10).map(item => {
-                    const title = item.querySelector("title")?.textContent || '';
-                    // XML 태그 차이를 극복하기 위해 description, summary 두 개 다 확인
-                    let desc = item.querySelector("description, summary")?.textContent || '';
-                    // TechCrunch 등에 섞여있는 HTML 찌꺼기 완벽 제거
-                    desc = desc.replace(/<[^>]*>?/gm, '').trim();
-                    const link = item.querySelector("link")?.textContent || '#';
-
-                    const cleanTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    const cleanDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-
-                    return `
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition group flex flex-col gap-3">
-                        <div class="cursor-pointer" onclick="setScriptText('${cleanTitle}', '${cleanDesc}')">
-                            <h4 class="font-bold text-slate-800 text-sm mb-1 group-hover:text-indigo-600 transition">${title}</h4>
-                            <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">${desc}</p>
-                        </div>
-                        <div class="flex justify-between items-center mt-1 pt-3 border-t border-slate-200">
-                            <button class="text-xs font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition px-3 py-1.5 rounded-md" onclick="setScriptText('${cleanTitle}', '${cleanDesc}')">🔊 대본으로</button>
-                            <a href="${link}" target="_blank" class="text-xs font-bold text-slate-400 hover:text-slate-700 transition flex items-center gap-1"><i class="fa-solid fa-arrow-up-right-from-square"></i> 원문 보기</a>
-                        </div>
-                    </div>`;
-                }).join('');
-            } catch (e) {
-                newsDiv.innerHTML = `<p class="text-sm text-rose-500 text-center mt-10"><i class="fa-solid fa-triangle-exclamation mr-2"></i>뉴스를 불러올 수 없습니다.<br>해당 언론사 RSS가 일시 지연 중입니다.</p>`;
+                // 1차: rss2json (TechCrunch·NYT 모두 잘 됨)
+                const items = await fetchViaRss2json(rssUrl);
+                newsDiv.innerHTML = renderNewsItems(items);
+            } catch (e1) {
+                try {
+                    // 2차 폴백: allorigins (BBC 전통 방식)
+                    const items = await fetchViaAllorigins(rssUrl);
+                    newsDiv.innerHTML = renderNewsItems(items);
+                } catch (e2) {
+                    newsDiv.innerHTML = `<p class="text-sm text-rose-500 text-center mt-10">
+                        <i class="fa-solid fa-triangle-exclamation mr-2"></i>뉴스를 불러올 수 없습니다.<br>
+                        잠시 후 다시 시도해 주세요.</p>`;
+                }
             }
         }
 
@@ -411,59 +441,83 @@
             }
         }
 
-        // 🚨 보이스 리딩 갭 완벽 제거 (단일 Utterance + 실시간 레이더 추적)
+        // ✅ Voice Studio - 문장 체인 방식 (갭 완전 제거 + 실시간 문장 하이라이팅)
         const synth = window.speechSynthesis;
+        let sentenceChain = [];
+        let currentSentenceIdx = 0;
+        let isSpeaking = false;
 
         window.speakText = () => {
-            const text = document.getElementById('scriptHighlight').innerText.trim();
-            if (!text) return;
+            const rawText = document.getElementById('scriptHighlight').innerText.trim();
+            if (!rawText) return;
             synth.cancel();
+            isSpeaking = true;
 
-            // 1. 단일 파일로 묶어서 엔진에 통째로 넘김 (중간 끊김 원천 차단)
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.lang = 'en-US';
-            utter.rate = 0.9;
-
-            // 2. 하이라이팅을 위한 문장 경계 좌표(Index) 기록
-            const regex = /[^.!?\n]+[.!?\n]*/g;
+            // 1. 문장 단위로 분리 (마침표/느낌표/물음표/줄바꿈 기준)
+            const sentenceRegex = /[^.!?\n]+[.!?\n]*/g;
             let match;
-            const bounds = [];
+            sentenceChain = [];
             let html = '';
-            let sIdx = 0;
-
-            while ((match = regex.exec(text)) !== null) {
-                bounds.push({ start: match.index, end: match.index + match[0].length, id: 's-' + sIdx });
-                html += `<span id="s-${sIdx}" class="transition-colors duration-200 cursor-pointer rounded px-1">${match[0]}</span>`;
-                sIdx++;
+            let idx = 0;
+            while ((match = sentenceRegex.exec(rawText)) !== null) {
+                const s = match[0];
+                if (s.trim().length === 0) continue;
+                sentenceChain.push(s);
+                html += `<span id="s-${idx}" class="transition-colors duration-200 rounded px-0.5">${s}</span>`;
+                idx++;
             }
             document.getElementById('scriptHighlight').innerHTML = html;
+            currentSentenceIdx = 0;
 
-            // 3. 엔진이 현재 읽고 있는 글자 위치(charIndex)를 쏴주면, 맞는 문장에 불을 켬
-            utter.onboundary = (e) => {
-                if (e.name === 'word' || e.name === 'sentence') {
-                    const charIndex = e.charIndex;
-                    const currentSentence = bounds.findIndex(b => charIndex >= b.start && charIndex < b.end);
-
-                    if (currentSentence !== -1) {
-                        document.querySelectorAll('#scriptHighlight span').forEach(span => {
-                            span.classList.remove('bg-indigo-100', 'text-indigo-700');
-                        });
-                        const activeSpan = document.getElementById('s-' + currentSentence);
-                        if (activeSpan) {
-                            activeSpan.classList.add('bg-indigo-100', 'text-indigo-700');
-                            activeSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                        document.getElementById('progressFill').style.width = `${((currentSentence + 1) / bounds.length) * 100}%`;
-                    }
+            // 2. 하이라이트 함수
+            function highlightSentence(i) {
+                document.querySelectorAll('#scriptHighlight span').forEach(sp => {
+                    sp.classList.remove('bg-indigo-100', 'text-indigo-700', 'font-semibold');
+                });
+                const el = document.getElementById('s-' + i);
+                if (el) {
+                    el.classList.add('bg-indigo-100', 'text-indigo-700', 'font-semibold');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
-            };
+                document.getElementById('progressFill').style.width =
+                    `${((i + 1) / sentenceChain.length) * 100}%`;
+            }
 
-            utter.onend = () => { document.getElementById('progressFill').style.width = '0%'; };
-            synth.speak(utter);
+            // 3. 체인 재귀 실행 - 각 문장이 끝나면 즉시 다음 문장 시작 (갭 0)
+            function speakNext(i) {
+                if (!isSpeaking || i >= sentenceChain.length) {
+                    if (i >= sentenceChain.length) {
+                        document.getElementById('progressFill').style.width = '0%';
+                        document.querySelectorAll('#scriptHighlight span').forEach(sp => {
+                            sp.classList.remove('bg-indigo-100', 'text-indigo-700', 'font-semibold');
+                        });
+                    }
+                    return;
+                }
+                highlightSentence(i);
+                const utter = new SpeechSynthesisUtterance(sentenceChain[i].trim());
+                utter.lang = 'en-US';
+                utter.rate = 0.92;
+                utter.onend = () => { if (isSpeaking) speakNext(i + 1); };
+                utter.onerror = () => { if (isSpeaking) speakNext(i + 1); };
+                synth.speak(utter);
+            }
+
+            speakNext(0);
         };
 
-        window.pauseResume = () => synth.paused ? synth.resume() : synth.pause();
-        window.stopText = () => { synth.cancel(); document.getElementById('progressFill').style.width = '0%'; };
+        window.pauseResume = () => {
+            if (synth.paused) { synth.resume(); }
+            else { synth.pause(); }
+        };
+        window.stopText = () => {
+            isSpeaking = false;
+            synth.cancel();
+            document.getElementById('progressFill').style.width = '0%';
+            document.querySelectorAll('#scriptHighlight span').forEach(sp => {
+                sp.classList.remove('bg-indigo-100', 'text-indigo-700', 'font-semibold');
+            });
+        };
 
 
         // ==========================================
