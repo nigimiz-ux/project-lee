@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Book Bank — LEE's 서재</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
     href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap"
@@ -267,6 +268,16 @@
       background: #2f4f75;
     }
 
+    .btn-secondary {
+      background: var(--paper);
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--cream);
+    }
+
     .btn-ghost {
       background: transparent;
       color: var(--accent);
@@ -505,7 +516,7 @@
       background: white;
     }
 
-    /* Modal */
+    /* Modal & Toast */
     .overlay {
       position: fixed;
       inset: 0;
@@ -796,8 +807,15 @@
               <option value="지면">지면</option>
               <option value="직접입력">직접 입력</option>
             </select></div>
-          <div class="form-group" id="tr-source-custom-wrap" style="display:none;"><label class="form-label">직접
-              입력</label><input class="form-input" id="tr-source-custom" type="text" placeholder="소스 직접 입력"></div>
+
+          <div class="form-group" id="tr-source-custom-wrap" style="display:none;">
+            <label class="form-label">직접 입력 (입력 후 + 버튼)</label>
+            <div style="display:flex; gap:0.4rem;">
+              <input class="form-input" id="tr-source-custom" type="text" placeholder="새 소스 입력" style="flex:1;">
+              <button class="btn btn-secondary" style="padding:0 0.8rem;" onclick="addCustomSource('toread')"
+                title="목록에 추가"><i class="fa-solid fa-plus"></i></button>
+            </div>
+          </div>
         </div>
         <div style="margin-top:1rem; display:flex; justify-content:flex-end;">
           <button class="btn btn-primary" id="btn-add-toread" onclick="addBook('toread')">+ 카카오 표지 검색 및 목록에 추가</button>
@@ -839,8 +857,15 @@
               <option value="지면">지면</option>
               <option value="직접입력">직접 입력</option>
             </select></div>
-          <div class="form-group" id="rd-source-custom-wrap" style="display:none;"><label class="form-label">직접
-              입력</label><input class="form-input" id="rd-source-custom" type="text" placeholder="소스 직접 입력"></div>
+
+          <div class="form-group" id="rd-source-custom-wrap" style="display:none;">
+            <label class="form-label">직접 입력 (입력 후 + 버튼)</label>
+            <div style="display:flex; gap:0.4rem;">
+              <input class="form-input" id="rd-source-custom" type="text" placeholder="새 소스 입력" style="flex:1;">
+              <button class="btn btn-secondary" style="padding:0 0.8rem;" onclick="addCustomSource('reading')"
+                title="목록에 추가"><i class="fa-solid fa-plus"></i></button>
+            </div>
+          </div>
         </div>
         <div style="margin-top:1rem; display:flex; justify-content:flex-end;">
           <button class="btn btn-green" id="btn-add-reading" onclick="addBook('reading')">📖 카카오 표지 검색 후 읽기 시작</button>
@@ -934,19 +959,14 @@
     const firestore_db = firebase.database();
     let currentUser = null;
 
-    // 🚀 임원님의 스크린샷에서 OCR로 직접 따온 카카오 키 하드코딩 완료!
     const KAKAO_API_KEY = "28f232beca3e7da5d1da2840f6336d1e";
 
     let db = { toread: [], reading: [], library: [] };
     let librarySortMode = 'recent';
 
     auth.onAuthStateChanged(user => {
-      if (user) {
-        currentUser = user;
-        fb_loadAll();
-      } else {
-        showToast('⚠️ 로그인 정보가 없습니다. 메인 화면에서 로그인해주세요.');
-      }
+      if (user) { currentUser = user; fb_loadAll(); }
+      else { showToast('⚠️ 로그인 정보가 없습니다. 메인 화면에서 로그인해주세요.'); }
     });
 
     function fb_loadAll() {
@@ -968,7 +988,7 @@
     function fb_deleteBook(id) { if (!currentUser) return; firestore_db.ref(`users/${currentUser.uid}/books/${id}`).remove(); }
 
     // ============================================================
-    //  🚀 카카오 책 검색 API (썸네일 추출)
+    //  🚀 카카오 책 검색 API
     // ============================================================
     async function fetchBookCover(title, author) {
       if (!KAKAO_API_KEY || KAKAO_API_KEY === "여기에_카카오_REST_API_키_입력") return null;
@@ -978,17 +998,13 @@
           headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
         });
         const data = await response.json();
-        if (data.documents && data.documents.length > 0) {
-          return data.documents[0].thumbnail || null;
-        }
-      } catch (error) {
-        console.error("카카오 표지 검색 실패:", error);
-      }
+        if (data.documents && data.documents.length > 0) return data.documents[0].thumbnail || null;
+      } catch (error) { console.error("카카오 표지 검색 실패:", error); }
       return null;
     }
 
     // ============================================================
-    //  UTILITY
+    //  UTILITY & NEW SOURCE LOGIC
     // ============================================================
     function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
     function formatDate(ts) { if (!ts) return ''; const d = new Date(ts); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; }
@@ -998,6 +1014,32 @@
     function getSourceValue(prefix) { const sel = document.getElementById(prefix + '-source-select').value; if (sel === '직접입력') { return document.getElementById(prefix + '-source-custom').value.trim() || '기타'; } return sel; }
     function clearForm(prefix) { ['title', 'author', 'source-custom'].forEach(f => { const el = document.getElementById(prefix + '-' + f); if (el) el.value = ''; }); const sel = document.getElementById(prefix + '-source-select'); if (sel) sel.value = '유튜브'; const wrap = document.getElementById(prefix + '-source-custom-wrap'); if (wrap) wrap.style.display = 'none'; }
     function escHtml(str) { return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    // 💡 [CTO 패치] 직접 입력한 소스를 드롭다운에 영구 추가
+    function addCustomSource(tab) {
+      const prefix = tab === 'toread' ? 'tr' : 'rd';
+      const input = document.getElementById(prefix + '-source-custom');
+      const val = input.value.trim();
+      if (!val) return;
+
+      ['tr', 'rd'].forEach(p => {
+        const sel = document.getElementById(p + '-source-select');
+        // 중복 검사
+        let exists = Array.from(sel.options).some(opt => opt.value === val);
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = val; opt.textContent = val;
+          // '직접입력' 바로 위에 추가
+          sel.insertBefore(opt, sel.lastElementChild);
+        }
+      });
+
+      const sel = document.getElementById(prefix + '-source-select');
+      sel.value = val;
+      toggleSourceInput(tab);
+      input.value = '';
+      showToast(`✅ [${val}] 소스가 추가되었습니다.`);
+    }
 
     // ============================================================
     //  BOOK CRUD
@@ -1036,7 +1078,7 @@
     function saveNotes(id) { const raw = document.getElementById('raw-' + id).value; const review = document.getElementById('review-' + id).value; fb_updateBook(id, { memoRaw: raw, memoReview: review }); showToast('💾 저장됨'); }
 
     // ============================================================
-    //  PARSE LEGACY MEMO (융통성 200% 중복 방지)
+    //  PARSE LEGACY MEMO
     // ============================================================
     function parseLegacyMemo(rawText) {
       const pattern = /^\[책\]\s*(.+?)\s*[-–—]\s*(.+?)\s*$/;
@@ -1069,11 +1111,7 @@
           if (current) memoLines.push(line);
         }
       }
-
-      if (current) {
-        current.memoRaw = memoLines.join('\n').trim();
-        books.push(current);
-      }
+      if (current) { current.memoRaw = memoLines.join('\n').trim(); books.push(current); }
       return books;
     }
 
@@ -1119,9 +1157,7 @@
     //  RENDER FUNCTIONS
     // ============================================================
     function getCoverHTML(book, spineClass) {
-      if (book.thumbnail) {
-        return `<img src="${book.thumbnail}" class="book-cover" alt="cover">`;
-      }
+      if (book.thumbnail) { return `<img src="${book.thumbnail}" class="book-cover" alt="cover">`; }
       return `<div class="book-spine ${spineClass}"></div><div class="book-cover">NO IMG</div>`;
     }
 
@@ -1165,9 +1201,6 @@
     }
     function renderAll() { renderToRead(); renderReading(); renderLibrary(); renderBadges(); }
 
-    // ============================================================
-    //  INTERACTIONS
-    // ============================================================
     function toggleLibraryCard(id, e) {
       const body = document.getElementById('lbody-' + id);
       const chev = document.getElementById('chev-' + id);
@@ -1184,13 +1217,7 @@
       document.getElementById('panel-' + tab).classList.add('active');
     }
 
-    function sortLibrary(mode) {
-      librarySortMode = mode;
-      document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('sort-' + mode).classList.add('active');
-      renderLibrary();
-    }
-
+    function sortLibrary(mode) { librarySortMode = mode; document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active')); document.getElementById('sort-' + mode).classList.add('active'); renderLibrary(); }
     function openImportModal() { document.getElementById('import-overlay').classList.add('open'); }
     function closeImportModal() { document.getElementById('import-overlay').classList.remove('open'); }
     function closeImportOnOutside(e) { if (e.target === document.getElementById('import-overlay')) closeImportModal(); }
