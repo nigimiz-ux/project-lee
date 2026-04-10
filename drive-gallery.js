@@ -34,6 +34,14 @@ let driveState = {
   lightboxIndex: null,
 };
 
+let driveSelection = new Set();
+let draggedDriveFileId = null;
+let driveLastSelectionIndex = null;
+let driveDeleteMode = 'trash';
+let driveShiftDragActive = false;
+let driveShiftDragAnchorIndex = null;
+let driveShiftDragChecked = true;
+
 // ============================================================
 // 1. GAPI + GIS 초기화
 // ============================================================
@@ -125,9 +133,10 @@ function renderDriveGallery() {
 
   if (hasValidDriveToken()) {
     initDriveSession();
-  } else {
-    showDriveSignIn();
+    return;
   }
+
+  trySilentDriveSignIn();
 }
 
 // ============================================================
@@ -139,9 +148,7 @@ function getDriveGalleryHTML() {
       <!-- 헤더 -->
       <div class="dg-header">
         <div class="dg-title-row">
-          <span class="dg-icon">◈</span>
-          <h2 class="dg-title">DRIVE GALLERY</h2>
-          <span class="dg-badge">Google Drive</span>
+          <h2 class="dg-title">It's only JUN's matters</h2>
         </div>
         <div class="dg-toolbar" id="dg-toolbar" style="display:none">
           <div class="dg-breadcrumb" id="dg-breadcrumb"></div>
@@ -151,6 +158,15 @@ function getDriveGalleryHTML() {
             </button>
             <button class="dg-btn" id="dg-new-folder-btn" onclick="createDriveFolder()">
               + 폴더
+            </button>
+            <button class="dg-btn" id="dg-select-all-btn" onclick="toggleSelectAllDriveFiles()">
+              전체선택
+            </button>
+            <button class="dg-btn" id="dg-delete-mode-btn" onclick="toggleDriveDeleteMode()">
+              삭제모드: 휴지통
+            </button>
+            <button class="dg-btn dg-btn-danger" id="dg-delete-selected-btn" onclick="deleteSelectedDriveFiles()" disabled>
+              선택삭제(0)
             </button>
             <div class="dg-view-toggle">
               <button class="dg-view-btn active" id="dg-grid-btn" onclick="setDriveView('grid')">⊞</button>
@@ -220,17 +236,12 @@ function attachDriveGalleryStyles() {
     /* 헤더 */
     .dg-header { margin-bottom: 20px; }
     .dg-title-row {
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; justify-content: center;
       border-bottom: 1px solid #2a3a4a; padding-bottom: 12px; margin-bottom: 12px;
     }
-    .dg-icon { color: #4fc3f7; font-size: 18px; }
     .dg-title {
-      font-size: 14px; font-weight: bold; letter-spacing: 3px;
+      font-size: 14px; font-weight: bold; letter-spacing: 1px;
       color: #4fc3f7; margin: 0;
-    }
-    .dg-badge {
-      font-size: 10px; background: #1a2a3a; border: 1px solid #2a4a6a;
-      color: #4fc3f7; padding: 2px 8px; border-radius: 2px; letter-spacing: 1px;
     }
 
     /* 툴바 */
@@ -263,6 +274,11 @@ function attachDriveGalleryStyles() {
     .dg-btn-primary:hover { background: #4fc3f7; color: #0a1929; }
     .dg-btn-danger { border-color: #e74c3c; color: #e74c3c; }
     .dg-btn-danger:hover { background: #e74c3c; color: white; }
+    .dg-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
 
     .dg-view-toggle { display: flex; border: 1px solid #2a4a6a; border-radius: 2px; overflow: hidden; }
     .dg-view-btn {
@@ -326,6 +342,14 @@ function attachDriveGalleryStyles() {
       aspect-ratio: 1;
     }
     .dg-cell:hover { border-color: #4fc3f7; transform: scale(1.02); }
+    .dg-cell.selected {
+      border-color: #4fc3f7;
+      box-shadow: 0 0 0 1px #4fc3f7 inset;
+    }
+    .dg-cell.drop-target {
+      border-color: #50e3c2;
+      box-shadow: 0 0 0 2px #50e3c2 inset;
+    }
     .dg-cell img, .dg-cell video {
       width: 100%; height: 100%; object-fit: cover; display: block;
     }
@@ -344,6 +368,11 @@ function attachDriveGalleryStyles() {
       display: flex; gap: 3px; opacity: 0; transition: opacity 0.2s;
     }
     .dg-cell:hover .dg-cell-actions { opacity: 1; }
+    .dg-cell-check {
+      position: absolute; top: 4px; left: 4px;
+      width: 16px; height: 16px; z-index: 2; cursor: pointer;
+      accent-color: #4fc3f7;
+    }
     .dg-cell-btn {
       width: 20px; height: 20px; font-size: 9px;
       background: rgba(0,0,0,0.7); border: 1px solid #2a4a6a;
@@ -383,7 +412,16 @@ function attachDriveGalleryStyles() {
       cursor: pointer; transition: all 0.2s;
     }
     .dg-list-row:hover { border-color: #4fc3f7; background: #0d2137; }
+    .dg-list-row.selected {
+      border-color: #4fc3f7;
+      background: #0d2137;
+    }
+    .dg-list-row.drop-target {
+      border-color: #50e3c2;
+      background: #103244;
+    }
     .dg-list-icon { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
+    .dg-list-check { accent-color: #4fc3f7; }
     .dg-list-thumb {
       width: 36px; height: 36px; object-fit: cover;
       border-radius: 2px; flex-shrink: 0;
@@ -479,6 +517,17 @@ async function signInDrive() {
   }
 }
 
+async function trySilentDriveSignIn() {
+  setDriveLoading(true, '세션 복구 중...');
+  try {
+    await ensureDriveAccessToken(false, { silent: true });
+    await initDriveSession();
+  } catch (e) {
+    console.warn('[DriveGallery] silent login failed', e);
+    showDriveSignIn();
+  }
+}
+
 function hasValidDriveToken() {
   const token = gapi.client.getToken()?.access_token;
   if (!token) return false;
@@ -486,11 +535,13 @@ function hasValidDriveToken() {
   return Date.now() < driveState.tokenExpiresAt - 30000;
 }
 
-async function ensureDriveAccessToken(forceConsent) {
+async function ensureDriveAccessToken(forceConsent, options = {}) {
   if (hasValidDriveToken()) return;
   if (!driveState.tokenClient) throw new Error('GIS token client not initialized');
 
-  const promptMode = forceConsent || !driveState.consentGranted ? 'consent' : '';
+  const promptMode = options.silent
+    ? 'none'
+    : (forceConsent || !driveState.consentGranted ? 'consent' : '');
 
   const tokenResponse = await new Promise((resolve, reject) => {
     driveState.tokenClient.callback = (resp) => {
@@ -500,7 +551,8 @@ async function ensureDriveAccessToken(forceConsent) {
       }
       resolve(resp);
     };
-    driveState.tokenClient.requestAccessToken({ prompt: promptMode });
+    const requestOptions = promptMode ? { prompt: promptMode } : {};
+    driveState.tokenClient.requestAccessToken(requestOptions);
   });
 
   gapi.client.setToken({ access_token: tokenResponse.access_token });
@@ -590,6 +642,8 @@ function setDriveView(view) {
 function renderDriveFiles() {
   const files = driveState.files;
   const content = document.getElementById('dg-content');
+  cleanupDriveSelection();
+  updateDriveSelectionUI();
 
   if (files.length === 0) {
     content.innerHTML = `
@@ -622,9 +676,16 @@ function renderDriveFiles() {
 
 function createFolderCell(file) {
   const div = document.createElement('div');
-  div.className = 'dg-cell dg-folder-cell';
+  div.className = `dg-cell dg-folder-cell ${driveSelection.has(file.id) ? 'selected' : ''}`;
   div.onclick = () => enterDriveFolder(file.id, file.name);
+  div.onmouseenter = () => continueShiftDragSelection(file.id);
+  div.ondragover = (e) => onDriveFolderDragOver(e, div);
+  div.ondragleave = () => div.classList.remove('drop-target');
+  div.ondrop = (e) => handleDriveFileDropToFolder(e, file.id, file.name, div);
   div.innerHTML = `
+    <input class="dg-cell-check" type="checkbox" ${driveSelection.has(file.id) ? 'checked' : ''}
+      onmousedown="event.stopPropagation(); startShiftDragSelection(event, '${file.id}', this.checked)"
+      onclick="event.stopPropagation(); handleDriveSelectionChange(event, '${file.id}', this.checked)" />
     <span class="dg-folder-icon">📁</span>
     <span class="dg-folder-name">${escHtml(file.name)}</span>
   `;
@@ -633,7 +694,11 @@ function createFolderCell(file) {
 
 function createMediaCell(file, index) {
   const div = document.createElement('div');
-  div.className = 'dg-cell';
+  div.className = `dg-cell ${driveSelection.has(file.id) ? 'selected' : ''}`;
+  div.onmouseenter = () => continueShiftDragSelection(file.id);
+  div.draggable = true;
+  div.ondragstart = () => handleDriveFileDragStart(file.id);
+  div.ondragend = handleDriveFileDragEnd;
 
   const isVideo = file.mimeType.startsWith('video/');
   const thumb = file.thumbnailLink;
@@ -653,6 +718,9 @@ function createMediaCell(file, index) {
   }
 
   div.innerHTML += `
+    <input class="dg-cell-check" type="checkbox" ${driveSelection.has(file.id) ? 'checked' : ''}
+      onmousedown="event.stopPropagation(); startShiftDragSelection(event, '${file.id}', this.checked)"
+      onclick="event.stopPropagation(); handleDriveSelectionChange(event, '${file.id}', this.checked)" />
     <div class="dg-cell-overlay">
       <span class="dg-cell-name">${escHtml(file.name)}</span>
     </div>
@@ -668,7 +736,8 @@ function createMediaCell(file, index) {
 
 function createListRow(file, isFolder, index) {
   const div = document.createElement('div');
-  div.className = 'dg-list-row';
+  div.className = `dg-list-row ${driveSelection.has(file.id) ? 'selected' : ''}`;
+  div.onmouseenter = () => continueShiftDragSelection(file.id);
 
   const isVideo = !isFolder && file.mimeType.startsWith('video/');
   const icon = isFolder ? '📁' : isVideo ? '🎬' : '🖼';
@@ -677,6 +746,9 @@ function createListRow(file, isFolder, index) {
   const thumb = file.thumbnailLink;
 
   div.innerHTML = `
+    <input class="dg-list-check" type="checkbox" ${driveSelection.has(file.id) ? 'checked' : ''}
+      onmousedown="event.stopPropagation(); startShiftDragSelection(event, '${file.id}', this.checked)"
+      onclick="event.stopPropagation(); handleDriveSelectionChange(event, '${file.id}', this.checked)" />
     ${thumb && !isFolder 
       ? `<img class="dg-list-thumb" src="${thumb}" alt="" onerror="this.style.display='none'" />`
       : `<span class="dg-list-icon">${icon}</span>`
@@ -690,11 +762,130 @@ function createListRow(file, isFolder, index) {
 
   if (isFolder) {
     div.onclick = () => enterDriveFolder(file.id, file.name);
+    div.ondragover = (e) => onDriveFolderDragOver(e, div);
+    div.ondragleave = () => div.classList.remove('drop-target');
+    div.ondrop = (e) => handleDriveFileDropToFolder(e, file.id, file.name, div);
   } else {
     div.onclick = () => openDriveLightbox(index);
+    div.draggable = true;
+    div.ondragstart = () => handleDriveFileDragStart(file.id);
+    div.ondragend = handleDriveFileDragEnd;
   }
 
   return div;
+}
+
+function getDriveMediaFiles() {
+  return driveState.files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
+}
+
+function getDriveOrderedSelectableFiles() {
+  const folders = driveState.files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+  const mediaFiles = driveState.files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
+  return [...folders, ...mediaFiles];
+}
+
+function cleanupDriveSelection() {
+  const fileIds = new Set(getDriveOrderedSelectableFiles().map(f => f.id));
+  driveSelection = new Set([...driveSelection].filter(id => fileIds.has(id)));
+  if (driveLastSelectionIndex !== null) {
+    const maxIdx = getDriveOrderedSelectableFiles().length - 1;
+    if (driveLastSelectionIndex > maxIdx) driveLastSelectionIndex = null;
+  }
+}
+
+function toggleDriveFileSelection(fileId, checked) {
+  if (checked) driveSelection.add(fileId);
+  else driveSelection.delete(fileId);
+  updateDriveSelectionUI();
+  renderDriveFiles();
+}
+
+function handleDriveSelectionChange(event, fileId, checked) {
+  const ordered = getDriveOrderedSelectableFiles();
+  const currentIndex = ordered.findIndex(f => f.id === fileId);
+  if (currentIndex < 0) return;
+
+  if (event && event.shiftKey && driveLastSelectionIndex !== null) {
+    applyDriveSelectionRange(driveLastSelectionIndex, currentIndex, checked);
+  } else {
+    if (checked) driveSelection.add(fileId);
+    else driveSelection.delete(fileId);
+  }
+
+  driveLastSelectionIndex = currentIndex;
+  updateDriveSelectionUI();
+  renderDriveFiles();
+}
+
+function applyDriveSelectionRange(startIndex, endIndex, checked) {
+  const ordered = getDriveOrderedSelectableFiles();
+  const [start, end] = endIndex > startIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+  for (let i = start; i <= end; i++) {
+    const targetId = ordered[i]?.id;
+    if (!targetId) continue;
+    if (checked) driveSelection.add(targetId);
+    else driveSelection.delete(targetId);
+  }
+}
+
+function startShiftDragSelection(event, fileId, checked) {
+  if (!event.shiftKey || event.button !== 0) return;
+  const ordered = getDriveOrderedSelectableFiles();
+  const idx = ordered.findIndex(f => f.id === fileId);
+  if (idx < 0) return;
+  driveShiftDragActive = true;
+  driveShiftDragAnchorIndex = driveLastSelectionIndex !== null ? driveLastSelectionIndex : idx;
+  driveShiftDragChecked = checked;
+}
+
+function continueShiftDragSelection(fileId) {
+  if (!driveShiftDragActive || driveShiftDragAnchorIndex === null) return;
+  const ordered = getDriveOrderedSelectableFiles();
+  const hoverIndex = ordered.findIndex(f => f.id === fileId);
+  if (hoverIndex < 0) return;
+  applyDriveSelectionRange(driveShiftDragAnchorIndex, hoverIndex, driveShiftDragChecked);
+  driveLastSelectionIndex = hoverIndex;
+  updateDriveSelectionUI();
+  renderDriveFiles();
+}
+
+function stopShiftDragSelection() {
+  driveShiftDragActive = false;
+  driveShiftDragAnchorIndex = null;
+}
+
+function toggleSelectAllDriveFiles() {
+  const selectableFiles = getDriveOrderedSelectableFiles();
+  if (selectableFiles.length === 0) return;
+  const allSelected = selectableFiles.every(f => driveSelection.has(f.id));
+  if (allSelected) {
+    driveSelection.clear();
+    driveLastSelectionIndex = null;
+  } else {
+    selectableFiles.forEach(f => driveSelection.add(f.id));
+  }
+  updateDriveSelectionUI();
+  renderDriveFiles();
+}
+
+function updateDriveSelectionUI() {
+  const selectableFiles = getDriveOrderedSelectableFiles();
+  const selectedCount = driveSelection.size;
+  const deleteBtn = document.getElementById('dg-delete-selected-btn');
+  const selectAllBtn = document.getElementById('dg-select-all-btn');
+  const deleteModeBtn = document.getElementById('dg-delete-mode-btn');
+  if (deleteBtn) {
+    deleteBtn.disabled = selectedCount === 0;
+    deleteBtn.textContent = `선택삭제(${selectedCount})`;
+  }
+  if (selectAllBtn) {
+    const allSelected = selectableFiles.length > 0 && selectableFiles.every(f => driveSelection.has(f.id));
+    selectAllBtn.textContent = allSelected ? '선택해제' : '전체선택';
+  }
+  if (deleteModeBtn) {
+    deleteModeBtn.textContent = `삭제모드: ${driveDeleteMode === 'trash' ? '휴지통' : '영구삭제'}`;
+  }
 }
 
 // ============================================================
@@ -719,6 +910,57 @@ function navigateDriveBreadcrumb(index) {
   driveState.breadcrumb = driveState.breadcrumb.slice(0, index + 1);
   const target = driveState.breadcrumb[index];
   loadDriveFiles(target.id);
+}
+
+function handleDriveFileDragStart(fileId) {
+  draggedDriveFileId = fileId;
+}
+
+function handleDriveFileDragEnd() {
+  draggedDriveFileId = null;
+  document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+}
+
+function onDriveFolderDragOver(event, targetEl) {
+  if (!draggedDriveFileId) return;
+  event.preventDefault();
+  targetEl.classList.add('drop-target');
+}
+
+async function handleDriveFileDropToFolder(event, folderId, folderName, targetEl) {
+  event.preventDefault();
+  targetEl.classList.remove('drop-target');
+  if (!draggedDriveFileId) return;
+  const fileId = draggedDriveFileId;
+  draggedDriveFileId = null;
+  if (fileId === folderId) return;
+
+  try {
+    await ensureDriveAccessToken(false);
+    const meta = await gapi.client.drive.files.get({
+      fileId,
+      fields: 'id, parents, name',
+    });
+    const parents = meta.result.parents || [];
+    if (parents.includes(folderId)) {
+      showDriveToast('이미 해당 폴더에 있습니다');
+      setTimeout(hideDriveToast, 1600);
+      return;
+    }
+    await gapi.client.drive.files.update({
+      fileId,
+      addParents: folderId,
+      removeParents: parents.join(','),
+      fields: 'id, parents',
+    });
+    driveSelection.delete(fileId);
+    await loadDriveFiles(driveState.currentFolderId);
+    showDriveToast(`✓ "${folderName}" 폴더로 이동 완료`);
+    setTimeout(hideDriveToast, 2000);
+  } catch (e) {
+    console.error('[DriveGallery] 파일 이동 오류', e);
+    showDriveToast('폴더 이동 오류');
+  }
 }
 
 // ============================================================
@@ -797,17 +1039,80 @@ function uploadSingleDriveFile(file) {
 // 11. 파일 삭제
 // ============================================================
 async function deleteDriveFile(fileId, fileName) {
-  if (!confirm(`"${fileName}" 을 삭제하시겠습니까?`)) return;
+  const modeLabel = driveDeleteMode === 'trash' ? '휴지통으로 이동' : '영구 삭제';
+  if (!confirm(`"${fileName}" 을(를) ${modeLabel} 하시겠습니까?`)) return;
   try {
-    await ensureDriveAccessToken(false);
-    await gapi.client.drive.files.delete({ fileId });
+    await executeDriveDelete(fileId);
     driveState.files = driveState.files.filter(f => f.id !== fileId);
+    driveSelection.delete(fileId);
     renderDriveFiles();
-    showDriveToast('✓ 삭제 완료');
+    showDriveToast(`✓ ${modeLabel} 완료`);
     setTimeout(hideDriveToast, 2000);
   } catch (e) {
     showDriveToast('삭제 오류');
   }
+}
+
+async function deleteSelectedDriveFiles() {
+  const ids = [...driveSelection];
+  if (ids.length === 0) return;
+  const modeLabel = driveDeleteMode === 'trash' ? '휴지통으로 이동' : '영구 삭제';
+  if (!confirmDriveBulkDeleteWithPreview(ids, modeLabel)) return;
+
+  let successCount = 0;
+  showDriveToast(`선택 ${modeLabel} 진행 중... (0/${ids.length})`);
+  try {
+    await ensureDriveAccessToken(false);
+    for (let i = 0; i < ids.length; i++) {
+      const fileId = ids[i];
+      try {
+        await executeDriveDelete(fileId);
+        successCount++;
+      } catch (e) {
+        console.error('[DriveGallery] 선택 삭제 오류', fileId, e);
+      }
+      showDriveToast(`선택 ${modeLabel} 진행 중... (${i + 1}/${ids.length})`);
+    }
+    driveSelection.clear();
+    driveLastSelectionIndex = null;
+    await loadDriveFiles(driveState.currentFolderId);
+    showDriveToast(`✓ ${successCount}/${ids.length} ${modeLabel} 완료`);
+    setTimeout(hideDriveToast, 2200);
+  } catch (e) {
+    console.error('[DriveGallery] 선택 삭제 전체 오류', e);
+    showDriveToast('선택 삭제 오류');
+  }
+}
+
+function confirmDriveBulkDeleteWithPreview(ids, modeLabel) {
+  const byId = new Map((driveState.files || []).map(f => [f.id, f.name || '(이름 없음)']));
+  const names = ids.map(id => byId.get(id) || `(알 수 없는 항목: ${id.slice(0, 8)}...)`);
+  const previewMax = 20;
+  const preview = names.slice(0, previewMax).map((n, i) => `${i + 1}. ${n}`).join('\n');
+  const remain = names.length - Math.min(names.length, previewMax);
+  const remainLine = remain > 0 ? `\n... 외 ${remain}개` : '';
+  const msg = `아래 ${ids.length}개 항목을 ${modeLabel} 합니다.\n\n${preview}${remainLine}\n\n계속 진행하시겠습니까?`;
+  return confirm(msg);
+}
+
+function toggleDriveDeleteMode() {
+  driveDeleteMode = driveDeleteMode === 'trash' ? 'permanent' : 'trash';
+  updateDriveSelectionUI();
+  showDriveToast(`삭제모드: ${driveDeleteMode === 'trash' ? '휴지통' : '영구삭제'}`);
+  setTimeout(hideDriveToast, 1400);
+}
+
+async function executeDriveDelete(fileId) {
+  await ensureDriveAccessToken(false);
+  if (driveDeleteMode === 'trash') {
+    await gapi.client.drive.files.update({
+      fileId,
+      resource: { trashed: true },
+      fields: 'id, trashed',
+    });
+    return;
+  }
+  await gapi.client.drive.files.delete({ fileId });
 }
 
 // ============================================================
@@ -890,14 +1195,15 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight') moveDriveLightbox(1);
   }
 });
+document.addEventListener('mouseup', stopShiftDragSelection);
 
 // ============================================================
 // 유틸
 // ============================================================
-function setDriveLoading(on) {
+function setDriveLoading(on, message = '로딩 중...') {
   if (on) {
     document.getElementById('dg-content').innerHTML = `
-      <div class="dg-loading"><div class="dg-spinner"></div><p>로딩 중...</p></div>
+      <div class="dg-loading"><div class="dg-spinner"></div><p>${escHtml(message)}</p></div>
     `;
   }
 }
