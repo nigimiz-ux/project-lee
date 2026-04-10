@@ -176,6 +176,7 @@
         </div>
     </div>
 
+    <script src="drive-gallery.js"></script>
     <script>
         MobileDragDrop.polyfill({ holdToDrag: 200, forceApply: true });
         window.addEventListener('touchmove', function () { }, { passive: false });
@@ -356,11 +357,16 @@
                 else { activeBtn.classList.replace('text-slate-300', 'text-white'); activeBtn.classList.add('bg-indigo-600'); }
             }
             document.getElementById('pageTitle').innerText = pageTitles[pageId];
-            document.getElementById('contentArea').innerHTML = pages[pageId];
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = pages[pageId];
 
             if (pageId === 'board') initKanban();
             if (pageId === 'vault') initVault();
             if (pageId === 'langstudio') initLangStudio();
+            if (pageId === 'photos') {
+                contentArea.innerHTML = '';
+                if (window.DriveGallery?.load) window.DriveGallery.load();
+            }
 
             if (window.innerWidth < 1024) { document.querySelector('main').scrollIntoView({ behavior: 'smooth' }); }
         }
