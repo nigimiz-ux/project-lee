@@ -23,6 +23,10 @@ const APP_FOLDER_NAME = 'ProjectLEE_Gallery';
 
 let driveState = {
   gapiReady: false,
+  gisReady: false,
+  tokenClient: null,
+  tokenExpiresAt: 0,
+  consentGranted: false,
   currentFolderId: null,
   rootFolderId: null,
   breadcrumb: [], // [{id, name}]
@@ -31,30 +35,69 @@ let driveState = {
 };
 
 // ============================================================
-// 1. GAPI 초기화
+// 1. GAPI + GIS 초기화
 // ============================================================
-function loadDriveGallery() {
-  if (window.driveGapiLoaded) {
-    renderDriveGallery();
-    return;
+let driveInitPromise = null;
+
+async function loadDriveGallery() {
+  if (!driveInitPromise) {
+    driveInitPromise = initDriveApis();
   }
-  // gapi 스크립트 동적 로드
-  const script = document.createElement('script');
-  script.src = 'https://apis.google.com/js/api.js';
-  script.onload = () => {
-    gapi.load('client:auth2', async () => {
-      await gapi.client.init({
-        apiKey: DRIVE_CONFIG.API_KEY,
-        clientId: DRIVE_CONFIG.CLIENT_ID,
-        discoveryDocs: DRIVE_CONFIG.DISCOVERY_DOCS,
-        scope: DRIVE_CONFIG.SCOPES,
-      });
-      window.driveGapiLoaded = true;
-      driveState.gapiReady = true;
-      renderDriveGallery();
+
+  try {
+    await driveInitPromise;
+    renderDriveGallery();
+  } catch (e) {
+    console.error('[DriveGallery] 초기화 실패', e);
+    showDriveToast('초기화 오류');
+  }
+}
+
+async function initDriveApis() {
+  await Promise.all([
+    loadScriptOnce('https://apis.google.com/js/api.js', 'drive-gapi-script'),
+    loadScriptOnce('https://accounts.google.com/gsi/client', 'drive-gis-script'),
+  ]);
+
+  await new Promise((resolve, reject) => {
+    gapi.load('client', {
+      callback: resolve,
+      onerror: () => reject(new Error('gapi client load failed')),
     });
-  };
-  document.body.appendChild(script);
+  });
+
+  await gapi.client.init({
+    apiKey: DRIVE_CONFIG.API_KEY,
+    discoveryDocs: DRIVE_CONFIG.DISCOVERY_DOCS,
+  });
+
+  driveState.tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: DRIVE_CONFIG.CLIENT_ID,
+    scope: DRIVE_CONFIG.SCOPES,
+    callback: () => {},
+  });
+
+  driveState.gapiReady = true;
+  driveState.gisReady = true;
+}
+
+function loadScriptOnce(src, id) {
+  return new Promise((resolve, reject) => {
+    const existing = document.getElementById(id);
+    if (existing) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = id;
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`script load failed: ${src}`));
+    document.head.appendChild(script);
+  });
 }
 
 // ============================================================
@@ -75,13 +118,12 @@ function renderDriveGallery() {
   container.innerHTML = getDriveGalleryHTML();
   attachDriveGalleryStyles();
 
-  if (!driveState.gapiReady) {
+  if (!driveState.gapiReady || !driveState.gisReady) {
     loadDriveGallery();
     return;
   }
 
-  const isSignedIn = gapi.auth2.getAuthInstance().isSignedIn.get();
-  if (isSignedIn) {
+  if (hasValidDriveToken()) {
     initDriveSession();
   } else {
     showDriveSignIn();
@@ -429,11 +471,41 @@ function showDriveSignIn() {
 
 async function signInDrive() {
   try {
-    await gapi.auth2.getAuthInstance().signIn();
+    await ensureDriveAccessToken(true);
     initDriveSession();
   } catch (e) {
+    console.error('[DriveGallery] 로그인 오류', e);
     showDriveToast('로그인 취소됨');
   }
+}
+
+function hasValidDriveToken() {
+  const token = gapi.client.getToken()?.access_token;
+  if (!token) return false;
+  if (!driveState.tokenExpiresAt) return true;
+  return Date.now() < driveState.tokenExpiresAt - 30000;
+}
+
+async function ensureDriveAccessToken(forceConsent) {
+  if (hasValidDriveToken()) return;
+  if (!driveState.tokenClient) throw new Error('GIS token client not initialized');
+
+  const promptMode = forceConsent || !driveState.consentGranted ? 'consent' : '';
+
+  const tokenResponse = await new Promise((resolve, reject) => {
+    driveState.tokenClient.callback = (resp) => {
+      if (resp?.error) {
+        reject(resp);
+        return;
+      }
+      resolve(resp);
+    };
+    driveState.tokenClient.requestAccessToken({ prompt: promptMode });
+  });
+
+  gapi.client.setToken({ access_token: tokenResponse.access_token });
+  driveState.tokenExpiresAt = Date.now() + ((tokenResponse.expires_in || 3600) * 1000);
+  driveState.consentGranted = true;
 }
 
 // ============================================================
@@ -444,6 +516,7 @@ async function initDriveSession() {
   setDriveLoading(true);
 
   try {
+    await ensureDriveAccessToken(false);
     // 앱 전용 폴더 찾거나 생성
     let res = await gapi.client.drive.files.list({
       q: `name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
@@ -483,6 +556,7 @@ async function initDriveSession() {
 async function loadDriveFiles(folderId) {
   setDriveLoading(true);
   try {
+    await ensureDriveAccessToken(false);
     const res = await gapi.client.drive.files.list({
       q: `'${folderId}' in parents and trashed=false`,
       fields: 'files(id, name, mimeType, size, createdTime, thumbnailLink, webContentLink, webViewLink)',
@@ -673,6 +747,7 @@ function handleDriveDrop(event) {
 async function uploadDriveFiles(files) {
   const total = files.length;
   showDriveToast(`0 / ${total} 업로드 중...`);
+  await ensureDriveAccessToken(false);
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -705,7 +780,12 @@ function uploadSingleDriveFile(file) {
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + gapi.auth.getToken().access_token);
+    const token = gapi.client.getToken()?.access_token;
+    if (!token) {
+      reject('missing access token');
+      return;
+    }
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
 
     xhr.onload = () => xhr.status === 200 ? resolve(JSON.parse(xhr.responseText)) : reject(xhr.responseText);
     xhr.onerror = () => reject('network error');
@@ -719,6 +799,7 @@ function uploadSingleDriveFile(file) {
 async function deleteDriveFile(fileId, fileName) {
   if (!confirm(`"${fileName}" 을 삭제하시겠습니까?`)) return;
   try {
+    await ensureDriveAccessToken(false);
     await gapi.client.drive.files.delete({ fileId });
     driveState.files = driveState.files.filter(f => f.id !== fileId);
     renderDriveFiles();
@@ -736,6 +817,7 @@ async function createDriveFolder() {
   const name = prompt('폴더 이름:');
   if (!name) return;
   try {
+    await ensureDriveAccessToken(false);
     await gapi.client.drive.files.create({
       resource: {
         name: name.trim(),
