@@ -43,6 +43,14 @@ let driveShiftDragAnchorIndex = null;
 let driveShiftDragChecked = true;
 let driveHistoryListenerAttached = false;
 
+/** 라이트박스 고화질 이미지용 Blob URL (해제 필요) */
+let driveLightboxObjectUrl = null;
+/** 라이트박스 이미지 줌: 1 = 화면에 맞춤 기준 */
+let driveLightboxUserZoom = 1;
+let driveLightboxZoomListenersAttached = false;
+let driveLbImgClickTimer = null;
+let driveLightboxLoadGen = 0;
+
 // ============================================================
 // 1. GAPI + GIS 초기화
 // ============================================================
@@ -210,11 +218,19 @@ function getDriveGalleryHTML() {
         <button class="dg-lb-prev" onclick="event.stopPropagation(); moveDriveLightbox(-1)">‹</button>
         <button class="dg-lb-next" onclick="event.stopPropagation(); moveDriveLightbox(1)">›</button>
         <div class="dg-lb-inner" onclick="event.stopPropagation()">
-          <img id="dg-lb-img" src="" alt="" />
+          <div class="dg-lb-top-actions">
+            <button type="button" class="dg-btn dg-lb-google-btn" id="dg-lb-google-btn" style="display:none"
+              onclick="event.stopPropagation(); openDriveLightboxGoogleViewer()">구글 뷰어로 보기 ↗</button>
+          </div>
+          <p class="dg-lb-img-status" id="dg-lb-img-status" style="display:none"></p>
+          <div class="dg-lb-img-wrap" id="dg-lb-img-wrap">
+            <img id="dg-lb-img" src="" alt="" draggable="false" />
+          </div>
           <video id="dg-lb-video" controls style="display:none"></video>
           <div class="dg-lb-info">
             <span id="dg-lb-name"></span>
             <span id="dg-lb-size"></span>
+            <span class="dg-lb-zoom-hint">휠: 확대/축소 · 클릭: 2배/맞춤 · 더블클릭: 맞춤 고정</span>
           </div>
         </div>
       </div>
@@ -400,6 +416,12 @@ function attachDriveGalleryStyles() {
       display: flex; align-items: center; justify-content: center;
     }
     .dg-cell-btn:hover { background: #e74c3c; border-color: #e74c3c; }
+    .dg-cell-btn.dg-cell-btn-gviewer {
+      color: #7eb8e8; border-color: #3a6a9a;
+    }
+    .dg-cell-btn.dg-cell-btn-gviewer:hover {
+      background: rgba(79, 195, 247, 0.2); border-color: #4fc3f7; color: #4fc3f7;
+    }
 
     /* 폴더 셀 */
     .dg-folder-cell {
@@ -468,6 +490,15 @@ function attachDriveGalleryStyles() {
       transition: all 0.2s; flex-shrink: 0;
     }
     .dg-list-del:hover { background: #e74c3c; border-color: #e74c3c; color: white; }
+    .dg-list-gviewer {
+      font-size: 10px; padding: 3px 8px;
+      background: transparent; border: 1px solid #3a6a9a;
+      color: #7eb8e8; border-radius: 2px; cursor: pointer;
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    .dg-list-gviewer:hover {
+      border-color: #4fc3f7; color: #4fc3f7; background: rgba(79, 195, 247, 0.1);
+    }
 
     /* 라이트박스 */
     .dg-lightbox {
@@ -477,14 +508,57 @@ function attachDriveGalleryStyles() {
     }
     .dg-lb-inner {
       max-width: 90vw; max-height: 90vh;
-      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
     }
-    .dg-lb-inner img, .dg-lb-inner video {
+    .dg-lb-top-actions {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+      width: 100%;
+    }
+    .dg-lb-google-btn {
+      font-size: 11px; letter-spacing: 0.5px;
+      border-color: #3a6a9a !important; color: #7eb8e8 !important;
+    }
+    .dg-lb-google-btn:hover {
+      border-color: #4fc3f7 !important; color: #4fc3f7 !important;
+      background: rgba(79, 195, 247, 0.1) !important;
+    }
+    .dg-lb-img-status {
+      margin: 0; font-size: 11px; color: #4fc3f7; letter-spacing: 1px;
+    }
+    .dg-lb-img-wrap {
+      overflow: auto;
+      max-width: 85vw;
+      max-height: 75vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 2px;
+      border: 1px solid #2a4a6a;
+      background: rgba(10, 20, 35, 0.6);
+    }
+    .dg-lb-inner #dg-lb-img {
+      display: block;
+      border-radius: 0;
+      border: none;
+      max-width: 100%;
+      max-height: 75vh;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      cursor: zoom-in;
+      vertical-align: middle;
+    }
+    .dg-lb-inner video {
       max-width: 85vw; max-height: 80vh; border-radius: 2px;
       border: 1px solid #2a4a6a;
     }
     .dg-lb-info {
-      display: flex; gap: 16px; font-size: 11px; color: #7a9ab5;
+      display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 11px; color: #7a9ab5;
+      align-items: center; justify-content: center;
+    }
+    .dg-lb-zoom-hint {
+      font-size: 9px; color: #3a5a7a; letter-spacing: 0.5px;
+      width: 100%; text-align: center;
     }
     .dg-lb-close {
       position: fixed; top: 20px; right: 24px;
@@ -716,6 +790,10 @@ function openDriveItemByFile(file) {
 }
 
 function appendDriveCellChrome(div, file) {
+  const gViewerBtn = file.webViewLink
+    ? `<button type="button" class="dg-cell-btn dg-cell-btn-gviewer" title="구글 뷰어로 보기"
+        onclick="event.stopPropagation(); openDriveGoogleViewerById('${file.id}')">↗</button>`
+    : '';
   div.insertAdjacentHTML(
     'beforeend',
     `
@@ -726,7 +804,8 @@ function appendDriveCellChrome(div, file) {
       <span class="dg-cell-name">${escHtml(file.name)}</span>
     </div>
     <div class="dg-cell-actions">
-      <button class="dg-cell-btn" title="삭제"
+      ${gViewerBtn}
+      <button type="button" class="dg-cell-btn" title="삭제"
         onclick="event.stopPropagation(); deleteDriveFile('${file.id}', '${escHtml(file.name)}')">✕</button>
     </div>
   `
@@ -864,7 +943,13 @@ function createListRow(file, isFolder) {
     <span class="dg-list-name">${escHtml(file.name)}</span>
     <span class="dg-list-size">${size}</span>
     <span class="dg-list-date">${date}</span>
-    ${!isFolder ? `<button class="dg-list-del" 
+    ${
+      !isFolder && file.webViewLink
+        ? `<button type="button" class="dg-list-gviewer" title="구글 뷰어로 보기"
+            onclick="event.stopPropagation(); openDriveGoogleViewerById('${file.id}')">구글 뷰어 ↗</button>`
+        : ''
+    }
+    ${!isFolder ? `<button type="button" class="dg-list-del" 
       onclick="event.stopPropagation(); deleteDriveFile('${file.id}', '${escHtml(file.name)}')">삭제</button>` : ''}
   `;
 
@@ -1331,31 +1416,281 @@ async function createDriveFolder() {
 }
 
 // ============================================================
-// 13. 라이트박스
+// 13. 라이트박스 (고화질 / 구글 뷰어 / 줌)
 // ============================================================
+function revokeDriveLightboxObjectUrl() {
+  if (driveLightboxObjectUrl) {
+    URL.revokeObjectURL(driveLightboxObjectUrl);
+    driveLightboxObjectUrl = null;
+  }
+}
+
+function stripDriveWebContentDownloadUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    u.searchParams.delete('export');
+    return u.toString();
+  } catch {
+    return String(url).replace(/([?&])export=download(&|$)/gi, '$1').replace(/[?&]$/, '');
+  }
+}
+
+function computeDriveLightboxFit(naturalWidth, naturalHeight) {
+  const maxW = Math.floor(window.innerWidth * 0.85);
+  const maxH = Math.floor(window.innerHeight * 0.75);
+  const nw = naturalWidth || 1;
+  const nh = naturalHeight || 1;
+  const scale = Math.min(maxW / nw, maxH / nh, 1);
+  return { w: nw * scale, h: nh * scale };
+}
+
+function resetDriveLightboxZoom() {
+  driveLightboxUserZoom = 1;
+}
+
+function applyDriveLightboxImageZoom(img) {
+  if (!img || img.style.display === 'none') return;
+  if (!img.naturalWidth || !img.naturalHeight) return;
+  const fit = computeDriveLightboxFit(img.naturalWidth, img.naturalHeight);
+  driveLightboxUserZoom = Math.max(0.2, Math.min(driveLightboxUserZoom, 10));
+  img.style.width = `${fit.w * driveLightboxUserZoom}px`;
+  img.style.height = `${fit.h * driveLightboxUserZoom}px`;
+  img.style.maxWidth = 'none';
+  img.style.maxHeight = 'none';
+}
+
+function attachDriveLightboxZoomListenersOnce() {
+  if (driveLightboxZoomListenersAttached) return;
+  driveLightboxZoomListenersAttached = true;
+
+  document.addEventListener(
+    'wheel',
+    (e) => {
+      const lb = document.getElementById('dg-lightbox');
+      if (!lb || lb.style.display === 'none') return;
+      const wrap = document.getElementById('dg-lb-img-wrap');
+      if (!wrap || wrap.style.display === 'none') return;
+      if (!wrap.contains(e.target)) return;
+      const img = document.getElementById('dg-lb-img');
+      if (!img || img.style.display === 'none' || !img.naturalWidth) return;
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      driveLightboxUserZoom *= factor;
+      applyDriveLightboxImageZoom(img);
+    },
+    { passive: false, capture: true }
+  );
+
+  document.addEventListener(
+    'click',
+    (e) => {
+      if (e.target.id !== 'dg-lb-img') return;
+      const lb = document.getElementById('dg-lightbox');
+      if (!lb || lb.style.display === 'none') return;
+      e.stopPropagation();
+      if (e.detail >= 2) {
+        if (driveLbImgClickTimer) {
+          clearTimeout(driveLbImgClickTimer);
+          driveLbImgClickTimer = null;
+        }
+        return;
+      }
+      if (driveLbImgClickTimer) clearTimeout(driveLbImgClickTimer);
+      const img = e.target;
+      driveLbImgClickTimer = setTimeout(() => {
+        driveLbImgClickTimer = null;
+        if (document.getElementById('dg-lightbox')?.style.display === 'none') return;
+        if (driveLightboxUserZoom <= 1.05) driveLightboxUserZoom = 2;
+        else driveLightboxUserZoom = 1;
+        applyDriveLightboxImageZoom(img);
+      }, 280);
+    },
+    true
+  );
+
+  document.addEventListener(
+    'dblclick',
+    (e) => {
+      if (e.target.id !== 'dg-lb-img') return;
+      const lb = document.getElementById('dg-lightbox');
+      if (!lb || lb.style.display === 'none') return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (driveLbImgClickTimer) {
+        clearTimeout(driveLbImgClickTimer);
+        driveLbImgClickTimer = null;
+      }
+      resetDriveLightboxZoom();
+      applyDriveLightboxImageZoom(e.target);
+    },
+    true
+  );
+
+  window.addEventListener('resize', () => {
+    const lb = document.getElementById('dg-lightbox');
+    if (!lb || lb.style.display === 'none') return;
+    const img = document.getElementById('dg-lb-img');
+    if (img && img.style.display !== 'none' && img.naturalWidth) {
+      applyDriveLightboxImageZoom(img);
+    }
+  });
+}
+
+async function loadDriveLightboxHighResImage(file, imgEl) {
+  const myGen = ++driveLightboxLoadGen;
+  const statusEl = document.getElementById('dg-lb-img-status');
+  const setStatus = (text, visible) => {
+    if (!statusEl || myGen !== driveLightboxLoadGen) return;
+    statusEl.textContent = text || '';
+    statusEl.style.display = visible ? 'block' : 'none';
+  };
+
+  revokeDriveLightboxObjectUrl();
+  imgEl.onload = null;
+  imgEl.onerror = null;
+  imgEl.alt = file.name || '';
+
+  const fallbackSrc = file.webContentLink
+    ? stripDriveWebContentDownloadUrl(file.webContentLink)
+    : (file.thumbnailLink || '');
+
+  const token = gapi.client.getToken()?.access_token;
+  if (!token) {
+    if (myGen !== driveLightboxLoadGen) return;
+    setStatus('', false);
+    imgEl.style.opacity = '1';
+    imgEl.src = fallbackSrc;
+    imgEl.onload = () => {
+      if (myGen !== driveLightboxLoadGen) return;
+      resetDriveLightboxZoom();
+      applyDriveLightboxImageZoom(imgEl);
+    };
+    return;
+  }
+
+  setStatus('고화질 원본 불러오는 중…', true);
+  imgEl.style.opacity = '0.92';
+
+  const apiUrl =
+    'https://www.googleapis.com/drive/v3/files/' +
+    encodeURIComponent(file.id) +
+    '?alt=media';
+
+  try {
+    const res = await fetch(apiUrl, {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    if (myGen !== driveLightboxLoadGen) return;
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+
+    const blob = await res.blob();
+    if (myGen !== driveLightboxLoadGen) return;
+    if (!blob || blob.size === 0) throw new Error('empty response');
+
+    driveLightboxObjectUrl = URL.createObjectURL(blob);
+    imgEl.onload = () => {
+      if (myGen !== driveLightboxLoadGen) return;
+      imgEl.style.opacity = '1';
+      setStatus('', false);
+      resetDriveLightboxZoom();
+      applyDriveLightboxImageZoom(imgEl);
+    };
+    imgEl.onerror = () => {
+      if (myGen !== driveLightboxLoadGen) return;
+      imgEl.style.opacity = '1';
+      setStatus('', false);
+      revokeDriveLightboxObjectUrl();
+      imgEl.src = fallbackSrc;
+      imgEl.onload = () => {
+        if (myGen !== driveLightboxLoadGen) return;
+        resetDriveLightboxZoom();
+        applyDriveLightboxImageZoom(imgEl);
+      };
+    };
+    imgEl.src = driveLightboxObjectUrl;
+  } catch (err) {
+    if (myGen !== driveLightboxLoadGen) return;
+    console.warn('[DriveGallery] 고화질 로드 실패, 대체 URL 사용', err);
+    imgEl.style.opacity = '1';
+    setStatus('', false);
+    imgEl.src = fallbackSrc;
+    imgEl.onload = () => {
+      if (myGen !== driveLightboxLoadGen) return;
+      resetDriveLightboxZoom();
+      applyDriveLightboxImageZoom(imgEl);
+    };
+  }
+}
+
+function openDriveGoogleViewerById(fileId) {
+  const file = (driveState.files || []).find((f) => f.id === fileId);
+  if (!file || !file.webViewLink) {
+    showDriveToast('구글 뷰어 링크가 없습니다');
+    return;
+  }
+  window.open(file.webViewLink, '_blank', 'noopener,noreferrer');
+}
+
+function openDriveLightboxGoogleViewer() {
+  const mediaFiles = getDrivePreviewableMediaFiles();
+  const idx = driveState.lightboxIndex;
+  if (idx == null || idx < 0 || idx >= mediaFiles.length) return;
+  openDriveGoogleViewerById(mediaFiles[idx].id);
+}
+
 function openDriveLightbox(index) {
   const mediaFiles = getDrivePreviewableMediaFiles();
   if (!mediaFiles.length || index < 0 || index >= mediaFiles.length) return;
+
+  attachDriveLightboxZoomListenersOnce();
 
   driveState.lightboxIndex = index;
   const file = mediaFiles[index];
   const lb = document.getElementById('dg-lightbox');
   const img = document.getElementById('dg-lb-img');
   const video = document.getElementById('dg-lb-video');
+  const imgWrap = document.getElementById('dg-lb-img-wrap');
+  const zoomHint = lb.querySelector('.dg-lb-zoom-hint');
+  const googleBtn = document.getElementById('dg-lb-google-btn');
+
+  if (googleBtn) {
+    googleBtn.style.display = file.webViewLink ? 'inline-flex' : 'none';
+  }
 
   const isVideo = isDriveVideoFile(file);
 
   if (isVideo) {
+    revokeDriveLightboxObjectUrl();
+    img.removeAttribute('src');
     img.style.display = 'none';
+    if (imgWrap) imgWrap.style.display = 'none';
+    if (zoomHint) zoomHint.style.display = 'none';
+    const statusEl = document.getElementById('dg-lb-img-status');
+    if (statusEl) statusEl.style.display = 'none';
+
     video.style.display = 'block';
-    video.src = file.webContentLink || file.webViewLink;
+    video.src = file.webContentLink || file.webViewLink || '';
   } else {
+    video.pause?.();
+    video.removeAttribute('src');
+    if (typeof video.load === 'function') video.load();
     video.style.display = 'none';
+
     img.style.display = 'block';
-    img.src = file.webContentLink
-      ? file.webContentLink.replace('&export=download', '')
-      : (file.thumbnailLink || '');
-    img.alt = file.name;
+    if (imgWrap) imgWrap.style.display = 'flex';
+    if (zoomHint) zoomHint.style.display = '';
+
+    resetDriveLightboxZoom();
+    img.style.opacity = '0.92';
+    if (file.thumbnailLink) {
+      img.src = file.thumbnailLink;
+      img.onload = () => applyDriveLightboxImageZoom(img);
+    } else {
+      img.removeAttribute('src');
+    }
+
+    loadDriveLightboxHighResImage(file, img);
   }
 
   document.getElementById('dg-lb-name').textContent = file.name;
@@ -1366,7 +1701,28 @@ function openDriveLightbox(index) {
 
 function closeDriveLightbox() {
   document.getElementById('dg-lightbox').style.display = 'none';
-  document.getElementById('dg-lb-video').pause?.();
+  const video = document.getElementById('dg-lb-video');
+  video.pause?.();
+  video.removeAttribute('src');
+  if (typeof video.load === 'function') video.load();
+
+  const img = document.getElementById('dg-lb-img');
+  img.onload = null;
+  img.onerror = null;
+  img.removeAttribute('src');
+  revokeDriveLightboxObjectUrl();
+  resetDriveLightboxZoom();
+  if (driveLbImgClickTimer) {
+    clearTimeout(driveLbImgClickTimer);
+    driveLbImgClickTimer = null;
+  }
+
+  const st = document.getElementById('dg-lb-img-status');
+  if (st) {
+    st.textContent = '';
+    st.style.display = 'none';
+  }
+
   document.body.style.overflow = '';
 }
 
