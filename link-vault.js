@@ -436,7 +436,11 @@ const LinkVault = (() => {
   const buildUI = async () => {
     injectStyles();
 
-    const target = document.getElementById("contentArea") || document.body;
+    const target = document.getElementById('main-content')
+      || document.querySelector('.content-area')
+      || document.querySelector('main')
+      || document.getElementById('app-content')
+      || document.body;
     target.innerHTML = "";
 
     const root = document.createElement("div");
@@ -470,10 +474,10 @@ const LinkVault = (() => {
     target.appendChild(root);
 
     /* 저장 버튼 */
-    const saveBtn   = root.querySelector("#lv-save-btn");
-    const urlInput  = root.querySelector("#lv-url-input");
+    const saveBtn = root.querySelector("#lv-save-btn");
+    const urlInput = root.querySelector("#lv-url-input");
     const memoInput = root.querySelector("#lv-memo-input");
-    const listEl    = root.querySelector("#lv-list");
+    const listEl = root.querySelector("#lv-list");
 
     const handleSave = async () => {
       const url = urlInput.value.trim();
@@ -482,7 +486,7 @@ const LinkVault = (() => {
       saveBtn.textContent = "저장 중…";
       try {
         await addItem(url, memoInput.value);
-        urlInput.value  = "";
+        urlInput.value = "";
         memoInput.value = "";
         await refreshList(listEl);
       } catch (err) {
