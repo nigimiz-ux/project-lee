@@ -436,11 +436,7 @@ const LinkVault = (() => {
   const buildUI = async () => {
     injectStyles();
 
-    const target = document.getElementById('main-content')
-      || document.querySelector('.content-area')
-      || document.querySelector('main')
-      || document.getElementById('app-content')
-      || document.body;
+    const target = document.getElementById("contentArea") || document.body;
     target.innerHTML = "";
 
     const root = document.createElement("div");
