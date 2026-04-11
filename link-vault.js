@@ -524,3 +524,4 @@ const LinkVault = (() => {
     load: buildUI,
   };
 })();
+window.LinkVault = LinkVault;
