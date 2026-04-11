@@ -376,6 +376,10 @@ const LinkVault = (() => {
     await getCollection().doc(id).update({ isArchived: true });
   };
 
+  // 👇 여기에 추가하십시오 👇
+  const deleteItem = async (id) => {
+    await getCollection().doc(id).delete();
+  };
   /* ─────────────────────────────────────────
    * 4. 렌더링
    * ───────────────────────────────────────── */
@@ -393,29 +397,35 @@ const LinkVault = (() => {
         ${item.memo ? `<span class="lv-item-memo">${item.memo}</span>` : ""}
         <span class="lv-item-date">${formatDate(item.createdAt)}</span>
       </div>
-      <button class="lv-done-btn" data-id="${item.id}">✓ 완료</button>
+<div style="display: flex; gap: 6px;">
+        <button class="lv-done-btn" data-id="${item.id}">✓ 완료</button>
+        <button class="lv-delete-btn" data-id="${item.id}" style="background: transparent; border: 1px solid #5c2020; border-radius: 6px; color: #ff7070; padding: 7px 12px; cursor: pointer; font-size: 0.73rem; font-weight: 700; white-space: nowrap; transition: 0.2s;">🗑️ 삭제</button>
+      </div>
     `;
 
-    div.querySelector(".lv-done-btn").addEventListener("click", async (e) => {
+    // 👇 완료 버튼 로직(});) 바로 밑에 이 코드를 추가하십시오 👇
+    div.querySelector(".lv-delete-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
+      // 임원님의 감성을 담은 최후통첩 알림창 ㅋㅋㅋ
+      if (!confirm("이 사랑의 상처(링크)를 영원히 지우시겠습니까?")) return;
+
       const btn = e.currentTarget;
       btn.disabled = true;
       btn.textContent = "…";
       try {
-        await archiveItem(item.id);
+        await deleteItem(item.id); // DB에서 완전 삭제!
         div.style.transition = "opacity 0.3s, transform 0.3s";
         div.style.opacity = "0";
         div.style.transform = "translateX(16px)";
         setTimeout(() => div.remove(), 310);
-        // 빈 상태 체크
         setTimeout(() => {
           const list = document.getElementById("lv-list");
           if (list && list.children.length === 0) renderEmpty(list);
         }, 350);
       } catch (err) {
         btn.disabled = false;
-        btn.textContent = "✓ 완료";
-        showToast("오류: " + err.message);
+        btn.textContent = "🗑️ 삭제";
+        showToast("삭제 오류: " + err.message);
       }
     });
 
