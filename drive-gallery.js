@@ -41,6 +41,7 @@ let driveDeleteMode = 'trash';
 let driveShiftDragActive = false;
 let driveShiftDragAnchorIndex = null;
 let driveShiftDragChecked = true;
+let driveHistoryListenerAttached = false;
 
 // ============================================================
 // 1. GAPI + GIS 초기화
@@ -125,6 +126,7 @@ function renderDriveGallery() {
 
   container.innerHTML = getDriveGalleryHTML();
   attachDriveGalleryStyles();
+  ensureDriveHistoryListener();
 
   if (!driveState.gapiReady || !driveState.gisReady) {
     loadDriveGallery();
@@ -151,7 +153,12 @@ function getDriveGalleryHTML() {
           <h2 class="dg-title">It's only JUN's matters</h2>
         </div>
         <div class="dg-toolbar" id="dg-toolbar" style="display:none">
-          <div class="dg-breadcrumb" id="dg-breadcrumb"></div>
+          <div class="dg-toolbar-left">
+            <button type="button" class="dg-btn dg-btn-up" id="dg-parent-folder-btn" style="display:none" onclick="goToParentDriveFolder()">
+              ⬆ 상위 폴더로
+            </button>
+            <div class="dg-breadcrumb" id="dg-breadcrumb"></div>
+          </div>
           <div class="dg-actions">
             <button class="dg-btn dg-btn-primary" id="dg-upload-btn" onclick="triggerDriveUpload()">
               ↑ 업로드
@@ -186,7 +193,7 @@ function getDriveGalleryHTML() {
       </div>
 
       <!-- 숨김 파일 input -->
-      <input type="file" id="dg-file-input" multiple accept="image/*,video/*"
+      <input type="file" id="dg-file-input" multiple
         style="display:none" onchange="handleDriveFileSelect(event)" />
 
       <!-- 콘텐츠 영역 -->
@@ -248,6 +255,19 @@ function attachDriveGalleryStyles() {
     .dg-toolbar {
       display: flex; align-items: center; justify-content: space-between;
       flex-wrap: wrap; gap: 8px;
+    }
+    .dg-toolbar-left {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+      flex: 1; min-width: 0;
+    }
+    .dg-btn-up {
+      flex-shrink: 0;
+      border-color: #50e3c2 !important;
+      color: #50e3c2 !important;
+    }
+    .dg-btn-up:hover {
+      background: rgba(80, 227, 194, 0.12) !important;
+      color: #7fffd4 !important;
     }
     .dg-breadcrumb {
       display: flex; align-items: center; gap: 4px;
@@ -403,6 +423,18 @@ function attachDriveGalleryStyles() {
       padding: 0 4px; word-break: break-all;
     }
 
+    /* 일반 문서 셀 (PDF 등) */
+    .dg-doc-cell {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 6px; background: #0a1929;
+      width: 100%; height: 100%;
+    }
+    .dg-doc-icon { font-size: 36px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35)); }
+    .dg-doc-name {
+      font-size: 9px; text-align: center; color: #7a9ab5;
+      padding: 0 6px; word-break: break-all; line-height: 1.25;
+    }
+
     /* 리스트 뷰 */
     .dg-list { display: flex; flex-direction: column; gap: 2px; }
     .dg-list-row {
@@ -420,7 +452,7 @@ function attachDriveGalleryStyles() {
       border-color: #50e3c2;
       background: #103244;
     }
-    .dg-list-icon { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
+    .dg-list-icon { font-size: 18px; flex-shrink: 0; width: 36px; height: 36px; text-align: center; display: flex; align-items: center; justify-content: center; background: #0a1929; border-radius: 2px; border: 1px solid #1a3a5a; }
     .dg-list-check { accent-color: #4fc3f7; }
     .dg-list-thumb {
       width: 36px; height: 36px; object-fit: cover;
@@ -594,6 +626,7 @@ async function initDriveSession() {
     driveState.currentFolderId = folderId;
     driveState.breadcrumb = [{ id: folderId, name: 'Gallery' }];
 
+    replaceDriveGalleryHistory();
     await loadDriveFiles(folderId);
   } catch (e) {
     console.error('[DriveGallery]', e);
@@ -632,6 +665,74 @@ async function loadDriveFiles(folderId) {
 // ============================================================
 let currentView = 'grid';
 
+function isDriveImageFile(file) {
+  return !!(file.mimeType && file.mimeType.startsWith('image/'));
+}
+
+function isDriveVideoFile(file) {
+  return !!(file.mimeType && file.mimeType.startsWith('video/'));
+}
+
+function isDriveLightboxPreviewable(file) {
+  return isDriveImageFile(file) || isDriveVideoFile(file);
+}
+
+function getDriveFileIcon(mime) {
+  const m = mime || '';
+  if (m.startsWith('video/')) return '🎬';
+  if (m.startsWith('audio/')) return '🎵';
+  if (m === 'application/pdf') return '📕';
+  if (m.includes('spreadsheet') || m.includes('excel')) return '📊';
+  if (m.includes('presentation') || m.includes('powerpoint')) return '📽';
+  if (m.includes('word') || m === 'application/msword') return '📝';
+  if (m.includes('zip') || m.includes('compressed') || m === 'application/x-zip-compressed') return '🗜';
+  return '📄';
+}
+
+function getDriveNonFolderFiles() {
+  return driveState.files.filter((f) => f.mimeType !== 'application/vnd.google-apps.folder');
+}
+
+function getDrivePreviewableMediaFiles() {
+  return getDriveNonFolderFiles().filter(isDriveLightboxPreviewable);
+}
+
+function openDriveExternalFile(file) {
+  if (!file) return;
+  const url = file.webViewLink || file.webContentLink;
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  else showDriveToast('열 수 있는 링크가 없습니다');
+}
+
+function openDriveItemByFile(file) {
+  if (!file) return;
+  if (isDriveLightboxPreviewable(file)) {
+    const list = getDrivePreviewableMediaFiles();
+    const idx = list.findIndex((f) => f.id === file.id);
+    if (idx >= 0) openDriveLightbox(idx);
+  } else {
+    openDriveExternalFile(file);
+  }
+}
+
+function appendDriveCellChrome(div, file) {
+  div.insertAdjacentHTML(
+    'beforeend',
+    `
+    <input class="dg-cell-check" type="checkbox" ${driveSelection.has(file.id) ? 'checked' : ''}
+      onmousedown="event.stopPropagation(); startShiftDragSelection(event, '${file.id}', this.checked)"
+      onclick="event.stopPropagation(); handleDriveSelectionChange(event, '${file.id}', this.checked)" />
+    <div class="dg-cell-overlay">
+      <span class="dg-cell-name">${escHtml(file.name)}</span>
+    </div>
+    <div class="dg-cell-actions">
+      <button class="dg-cell-btn" title="삭제"
+        onclick="event.stopPropagation(); deleteDriveFile('${file.id}', '${escHtml(file.name)}')">✕</button>
+    </div>
+  `
+  );
+}
+
 function setDriveView(view) {
   currentView = view;
   document.getElementById('dg-grid-btn').classList.toggle('active', view === 'grid');
@@ -650,7 +751,7 @@ function renderDriveFiles() {
       <div class="dg-empty">
         <span class="dg-empty-icon">◫</span>
         <p>파일이 없습니다</p>
-        <p style="font-size:10px; margin-top:8px; color:#2a4a6a">↑ 업로드 버튼으로 사진/동영상을 추가하세요</p>
+        <p style="font-size:10px; margin-top:8px; color:#2a4a6a">↑ 업로드 버튼으로 파일을 추가하세요</p>
       </div>
     `;
     return;
@@ -664,13 +765,13 @@ function renderDriveFiles() {
     const grid = document.getElementById('dg-grid-container');
 
     folders.forEach(f => grid.appendChild(createFolderCell(f)));
-    mediaFiles.forEach((f, i) => grid.appendChild(createMediaCell(f, i)));
+    mediaFiles.forEach((f) => grid.appendChild(createMediaCell(f)));
   } else {
     content.innerHTML = `<div class="dg-list" id="dg-list-container"></div>`;
     const list = document.getElementById('dg-list-container');
 
     folders.forEach(f => list.appendChild(createListRow(f, true)));
-    mediaFiles.forEach((f, i) => list.appendChild(createListRow(f, false, i)));
+    mediaFiles.forEach((f) => list.appendChild(createListRow(f, false)));
   }
 }
 
@@ -692,7 +793,7 @@ function createFolderCell(file) {
   return div;
 }
 
-function createMediaCell(file, index) {
+function createMediaCell(file) {
   const div = document.createElement('div');
   div.className = `dg-cell ${driveSelection.has(file.id) ? 'selected' : ''}`;
   div.onmouseenter = () => continueShiftDragSelection(file.id);
@@ -700,8 +801,9 @@ function createMediaCell(file, index) {
   div.ondragstart = () => handleDriveFileDragStart(file.id);
   div.ondragend = handleDriveFileDragEnd;
 
-  const isVideo = file.mimeType.startsWith('video/');
   const thumb = file.thumbnailLink;
+  const isVideo = isDriveVideoFile(file);
+  const isImage = isDriveImageFile(file);
 
   if (isVideo && !thumb) {
     div.innerHTML = `
@@ -710,48 +812,54 @@ function createMediaCell(file, index) {
         <span class="dg-video-name">${escHtml(file.name)}</span>
       </div>
     `;
+  } else if ((isImage || isVideo) && thumb) {
+    const img = document.createElement('img');
+    img.src = thumb;
+    img.alt = file.name || '';
+    img.loading = 'lazy';
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+    img.onerror = () => {
+      const docWrap = document.createElement('div');
+      docWrap.className = 'dg-doc-cell';
+      docWrap.style.cssText = 'width:100%;height:100%';
+      docWrap.innerHTML = `<span class="dg-doc-icon">${getDriveFileIcon(file.mimeType)}</span><span class="dg-doc-name">${escHtml(file.name)}</span>`;
+      img.replaceWith(docWrap);
+    };
+    div.appendChild(img);
   } else {
     div.innerHTML = `
-      <img src="${thumb || ''}" alt="${escHtml(file.name)}" 
-           onerror="this.style.display='none'" loading="lazy" />
+      <div class="dg-doc-cell" style="width:100%;height:100%">
+        <span class="dg-doc-icon">${getDriveFileIcon(file.mimeType)}</span>
+        <span class="dg-doc-name">${escHtml(file.name)}</span>
+      </div>
     `;
   }
 
-  div.innerHTML += `
-    <input class="dg-cell-check" type="checkbox" ${driveSelection.has(file.id) ? 'checked' : ''}
-      onmousedown="event.stopPropagation(); startShiftDragSelection(event, '${file.id}', this.checked)"
-      onclick="event.stopPropagation(); handleDriveSelectionChange(event, '${file.id}', this.checked)" />
-    <div class="dg-cell-overlay">
-      <span class="dg-cell-name">${escHtml(file.name)}</span>
-    </div>
-    <div class="dg-cell-actions">
-      <button class="dg-cell-btn" title="삭제" 
-        onclick="event.stopPropagation(); deleteDriveFile('${file.id}', '${escHtml(file.name)}')">✕</button>
-    </div>
-  `;
-
-  div.onclick = () => openDriveLightbox(index);
+  appendDriveCellChrome(div, file);
+  div.onclick = () => openDriveItemByFile(file);
   return div;
 }
 
-function createListRow(file, isFolder, index) {
+function createListRow(file, isFolder) {
   const div = document.createElement('div');
   div.className = `dg-list-row ${driveSelection.has(file.id) ? 'selected' : ''}`;
   div.onmouseenter = () => continueShiftDragSelection(file.id);
 
-  const isVideo = !isFolder && file.mimeType.startsWith('video/');
-  const icon = isFolder ? '📁' : isVideo ? '🎬' : '🖼';
+  const icon = isFolder ? '📁' : getDriveFileIcon(file.mimeType);
   const size = file.size ? formatBytes(parseInt(file.size)) : '—';
   const date = file.createdTime ? file.createdTime.substring(0, 10) : '';
   const thumb = file.thumbnailLink;
+  const useThumb =
+    !isFolder && thumb && (isDriveImageFile(file) || isDriveVideoFile(file));
 
   div.innerHTML = `
     <input class="dg-list-check" type="checkbox" ${driveSelection.has(file.id) ? 'checked' : ''}
       onmousedown="event.stopPropagation(); startShiftDragSelection(event, '${file.id}', this.checked)"
       onclick="event.stopPropagation(); handleDriveSelectionChange(event, '${file.id}', this.checked)" />
-    ${thumb && !isFolder 
-      ? `<img class="dg-list-thumb" src="${thumb}" alt="" onerror="this.style.display='none'" />`
-      : `<span class="dg-list-icon">${icon}</span>`
+    ${
+      useThumb
+        ? `<img class="dg-list-thumb dg-list-thumb-img" src="${thumb}" alt="" loading="lazy" />`
+        : `<span class="dg-list-icon">${icon}</span>`
     }
     <span class="dg-list-name">${escHtml(file.name)}</span>
     <span class="dg-list-size">${size}</span>
@@ -760,23 +868,34 @@ function createListRow(file, isFolder, index) {
       onclick="event.stopPropagation(); deleteDriveFile('${file.id}', '${escHtml(file.name)}')">삭제</button>` : ''}
   `;
 
+  const thumbEl = div.querySelector('.dg-list-thumb-img');
+  if (thumbEl) {
+    thumbEl.addEventListener(
+      'error',
+      function onListThumbErr() {
+        thumbEl.removeEventListener('error', onListThumbErr);
+        const sp = document.createElement('span');
+        sp.className = 'dg-list-icon';
+        sp.textContent = getDriveFileIcon(file.mimeType);
+        thumbEl.replaceWith(sp);
+      },
+      { once: true }
+    );
+  }
+
   if (isFolder) {
     div.onclick = () => enterDriveFolder(file.id, file.name);
     div.ondragover = (e) => onDriveFolderDragOver(e, div);
     div.ondragleave = () => div.classList.remove('drop-target');
     div.ondrop = (e) => handleDriveFileDropToFolder(e, file.id, file.name, div);
   } else {
-    div.onclick = () => openDriveLightbox(index);
+    div.onclick = () => openDriveItemByFile(file);
     div.draggable = true;
     div.ondragstart = () => handleDriveFileDragStart(file.id);
     div.ondragend = handleDriveFileDragEnd;
   }
 
   return div;
-}
-
-function getDriveMediaFiles() {
-  return driveState.files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
 }
 
 function getDriveOrderedSelectableFiles() {
@@ -889,10 +1008,78 @@ function updateDriveSelectionUI() {
 }
 
 // ============================================================
-// 9. 폴더 탐색
+// 9. 폴더 탐색 & History API (뒤로가기 / PWA 물리 버튼)
 // ============================================================
+function cloneDriveBreadcrumb() {
+  return driveState.breadcrumb.map((b) => ({ id: b.id, name: b.name }));
+}
+
+function driveGalleryHash(folderId) {
+  return `drive:${folderId}`;
+}
+
+function ensureDriveHistoryListener() {
+  if (driveHistoryListenerAttached) return;
+  driveHistoryListenerAttached = true;
+  window.addEventListener('popstate', onDriveGalleryPopState);
+}
+
+function replaceDriveGalleryHistory() {
+  ensureDriveHistoryListener();
+  const id = driveState.currentFolderId || driveState.rootFolderId;
+  if (!id) return;
+  const url = new URL(window.location.href);
+  url.hash = driveGalleryHash(id);
+  history.replaceState(
+    {
+      driveGallery: true,
+      breadcrumb: cloneDriveBreadcrumb(),
+      folderId: id,
+    },
+    '',
+    url.toString()
+  );
+}
+
+function pushDriveFolderHistory() {
+  ensureDriveHistoryListener();
+  const last = driveState.breadcrumb[driveState.breadcrumb.length - 1];
+  if (!last?.id) return;
+  const url = new URL(window.location.href);
+  url.hash = driveGalleryHash(last.id);
+  history.pushState(
+    {
+      driveGallery: true,
+      breadcrumb: cloneDriveBreadcrumb(),
+      folderId: last.id,
+    },
+    '',
+    url.toString()
+  );
+}
+
+function onDriveGalleryPopState(event) {
+  const root = document.getElementById('drive-gallery-root');
+  if (!root) return;
+  const st = event.state;
+  if (st && st.driveGallery && Array.isArray(st.breadcrumb) && st.breadcrumb.length) {
+    driveState.breadcrumb = st.breadcrumb.map((b) => ({
+      id: b.id,
+      name: b.name,
+    }));
+    const fid = st.folderId || st.breadcrumb[st.breadcrumb.length - 1].id;
+    loadDriveFiles(fid, { fromHistory: true }).catch((e) => console.error('[DriveGallery] popstate', e));
+  }
+}
+
+function goToParentDriveFolder() {
+  if (driveState.breadcrumb.length <= 1) return;
+  history.back();
+}
+
 function enterDriveFolder(id, name) {
   driveState.breadcrumb.push({ id, name });
+  pushDriveFolderHistory();
   loadDriveFiles(id);
 }
 
@@ -904,10 +1091,16 @@ function updateDriveBreadcrumb() {
     return `<span class="dg-bread-item" onclick="navigateDriveBreadcrumb(${i})">${escHtml(item.name)}</span>
             <span class="dg-bread-sep"> / </span>`;
   }).join('');
+
+  const parentBtn = document.getElementById('dg-parent-folder-btn');
+  if (parentBtn) {
+    parentBtn.style.display = driveState.breadcrumb.length > 1 ? 'inline-flex' : 'none';
+  }
 }
 
 function navigateDriveBreadcrumb(index) {
   driveState.breadcrumb = driveState.breadcrumb.slice(0, index + 1);
+  pushDriveFolderHistory();
   const target = driveState.breadcrumb[index];
   loadDriveFiles(target.id);
 }
@@ -980,9 +1173,7 @@ async function handleDriveFileSelect(event) {
 function handleDriveDrop(event) {
   event.preventDefault();
   document.getElementById('dg-dropzone').classList.remove('dg-drop-active');
-  const files = Array.from(event.dataTransfer.files).filter(
-    f => f.type.startsWith('image/') || f.type.startsWith('video/')
-  );
+  const files = Array.from(event.dataTransfer.files);
   if (files.length) uploadDriveFiles(files);
 }
 
@@ -1012,7 +1203,7 @@ function uploadSingleDriveFile(file) {
   return new Promise((resolve, reject) => {
     const metadata = {
       name: file.name,
-      mimeType: file.type,
+      mimeType: file.type || 'application/octet-stream',
       parents: [driveState.currentFolderId],
     };
 
@@ -1143,15 +1334,16 @@ async function createDriveFolder() {
 // 13. 라이트박스
 // ============================================================
 function openDriveLightbox(index) {
-  const mediaFiles = driveState.files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
-  driveState.lightboxIndex = index;
+  const mediaFiles = getDrivePreviewableMediaFiles();
+  if (!mediaFiles.length || index < 0 || index >= mediaFiles.length) return;
 
+  driveState.lightboxIndex = index;
   const file = mediaFiles[index];
   const lb = document.getElementById('dg-lightbox');
   const img = document.getElementById('dg-lb-img');
   const video = document.getElementById('dg-lb-video');
 
-  const isVideo = file.mimeType.startsWith('video/');
+  const isVideo = isDriveVideoFile(file);
 
   if (isVideo) {
     img.style.display = 'none';
@@ -1160,7 +1352,6 @@ function openDriveLightbox(index) {
   } else {
     video.style.display = 'none';
     img.style.display = 'block';
-    // thumbnailLink는 작음, webContentLink로 원본 요청
     img.src = file.webContentLink
       ? file.webContentLink.replace('&export=download', '')
       : (file.thumbnailLink || '');
@@ -1180,7 +1371,7 @@ function closeDriveLightbox() {
 }
 
 function moveDriveLightbox(dir) {
-  const mediaFiles = driveState.files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
+  const mediaFiles = getDrivePreviewableMediaFiles();
   let next = driveState.lightboxIndex + dir;
   if (next < 0) next = mediaFiles.length - 1;
   if (next >= mediaFiles.length) next = 0;
