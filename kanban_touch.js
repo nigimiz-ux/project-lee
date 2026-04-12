@@ -29,7 +29,6 @@ function initKanban() {
         'kanban-card bg-white p-4 rounded-xl shadow-sm border border-slate-100 ' +
         'cursor-grab active:cursor-grabbing hover:shadow-md transition relative group';
       card.dataset.key = key;
-      card.style.cssText = 'touch-action:none; -webkit-touch-callout:none;';
       card.setAttribute('oncontextmenu', 'return false;');
 
       // 1. 상세 내용 배지 (오류 났던 부분을 안전하게 분리)
