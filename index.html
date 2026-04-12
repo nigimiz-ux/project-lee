@@ -708,139 +708,7 @@
     });
     }
 
-    // ============================================================
-    // 아래 함수들은 기존 코드와 완전히 동일 (변경 없음)
-    // ============================================================
 
-    function initVault() {
-    if (!currentUser) {
-    document.getElementById('vaultTableBody').innerHTML = `<tr>
-        <td colspan="4" class="p-8 text-center text-rose-500 font-bold"><i class="fa-solid fa-lock mr-2"></i>권한이 없습니다.
-        </td>
-    </tr>`;
-    return;
-    }
-    db.ref(`users/${currentUser.uid}/tasks`).once('value').then((snapshot) => {
-    const tbody = document.getElementById('vaultTableBody');
-    if (!tbody) return;
-    boardData = snapshot.val() || {};
-    if (Object.keys(boardData).length === 0) {
-    tbody.innerHTML = `<tr>
-        <td colspan="4" class="p-8 text-center text-slate-500">데이터가 없습니다.</td>
-    </tr>`;
-    return;
-    }
-    tbody.innerHTML = '';
-    const statusHTML = {
-    'todo': '<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded-md text-xs font-bold">계획</span>',
-    'doing': '<span class="bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md text-xs font-bold">진행 중</span>',
-    'done': '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md text-xs font-bold">완료</span>'
-    };
-    Object.keys(boardData).forEach(key => {
-    const task = boardData[key];
-    const tr = document.createElement('tr');
-    tr.className = "hover:bg-slate-700/50 transition";
-    tr.innerHTML =
-    `<td class="p-4 font-bold text-slate-200">${task.text}</td>` +
-    `<td class="p-4">${statusHTML[task.status] || task.status}</td>` +
-    `<td class="p-4 text-slate-400 font-mono text-xs">${task.date}</td>` +
-    `<td class="p-4 text-slate-300 text-xs">${task.partner || '-'}</td>`;
-    tbody.appendChild(tr);
-    });
-    });
-    }
-    tbody.innerHTML = '';
-    const statusHTML = {
-    'todo': '<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded-md text-xs font-bold">계획</span>',
-    'doing': '<span class="bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md text-xs font-bold">진행 중</span>',
-    'done': '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md text-xs font-bold">완료</span>'
-    };
-    Object.keys(boardData).forEach(key => {
-    const task = boardData[key];
-    const tr = document.createElement('tr');
-    tr.className = "hover:bg-slate-700/50 transition";
-    tr.innerHTML =
-    `<td class="p-4 font-bold text-slate-200">${task.text}</td>` +
-    `<td class="p-4">${statusHTML[task.status] || task.status}</td>` +
-    `<td class="p-4 text-slate-400 font-mono text-xs">${task.date}</td>` +
-    `<td class="p-4 text-slate-300 text-xs">${task.partner || '-'}</td>`;
-    tbody.appendChild(tr);
-    });
-    });
-    }
-
-    function exportToCSV() {
-    if (!currentUser || Object.keys(boardData).length === 0) return alert("데이터가 없습니다.");
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF업무명,상태,생성일,협력업체,기자재,메모\n";
-    Object.keys(boardData).forEach(key => {
-    const t = boardData[key];
-    const escapeCSV = (str) => '"' + String(str || "").replace(/"/g, '""') + '"';
-    csvContent +=
-    `${escapeCSV(t.text)},` +
-    `${t.status === 'todo' ? '계획' : (t.status === 'doing' ? '진행중' : '완료')},` +
-    `${escapeCSV(t.date)},${escapeCSV(t.partner)},${escapeCSV(t.equipment)},${escapeCSV(t.notes)}\n`;
-    });
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `ProjectLEE_DB_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    }
-
-    function openModal(key) {
-    currentEditKey = key;
-    const task = boardData[key];
-    document.getElementById('modalTitle').innerText = task.text;
-    document.getElementById('modalPartner').value = task.partner || '';
-    document.getElementById('modalEquipment').value = task.equipment || '';
-    document.getElementById('modalNotes').value = task.notes || '';
-    const modal = document.getElementById('taskModal');
-    const modalBox = document.getElementById('taskModalBox');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-    modal.classList.remove('opacity-0');
-    modalBox.classList.remove('scale-95');
-    modalBox.classList.add('scale-100');
-    }, 10);
-    }
-
-    function closeModal() {
-    const modal = document.getElementById('taskModal');
-    const modalBox = document.getElementById('taskModalBox');
-    modal.classList.add('opacity-0');
-    modalBox.classList.remove('scale-100');
-    modalBox.classList.add('scale-95');
-    setTimeout(() => { modal.classList.add('hidden'); currentEditKey = null; }, 300);
-    }
-
-    function saveTaskDetails() {
-    if (!currentEditKey || !currentUser) return;
-    db.ref(`users/${currentUser.uid}/tasks/${currentEditKey}`).update({
-    partner: document.getElementById('modalPartner').value,
-    equipment: document.getElementById('modalEquipment').value,
-    notes: document.getElementById('modalNotes').value
-    }).then(() => closeModal());
-    }
-
-    function addNewTask() {
-    if (!currentUser) return;
-    const taskText = prompt("어떤 업무를 계획 중이신가요?");
-    if (!taskText || taskText.trim() === "") return;
-    db.ref(`users/${currentUser.uid}/tasks`).push({
-    text: taskText,
-    status: 'todo',
-    date: new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
-    });
-    }
-
-    function deleteTask(taskKey) {
-    if (confirm("삭제하시겠습니까?"))
-    db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).remove();
-    }
-
-    // ★ 아래 함수들은 SortableJS로 대체되었으므로 더 이상 사용하지 않습니다.
-    // dragTask / allowDrop / dropTask → 삭제해도 무방합니다.
     </script>
     <style>
         .custom-scrollbar::-webkit-scrollbar {
@@ -921,6 +789,9 @@
         }
     </style>
     <script src="link-vault.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+    <script src="kanban_touch.js"></script>
 </body>
 
 </html>
