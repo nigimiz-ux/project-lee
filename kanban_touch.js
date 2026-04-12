@@ -1,21 +1,7 @@
 // ============================================================
-// Kanban & Vault - SortableJS 기반 (모바일 터치 완전 지원)
-// ============================================================
-// 변경 사항 요약:
-//   - HTML5 draggable / ondragstart / allowDrop / dropTask 제거
-//   - SortableJS CDN 사용 → PC 마우스 + 모바일 터치 모두 지원
-//   - Firebase 저장 로직 100% 유지
-//   - initKanban() 호출 후 자동으로 Sortable 인스턴스 생성
-// ============================================================
-//
-// ★ index.html <head> 또는 </body> 직전에 아래 한 줄을 추가하세요:
-//   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+// Kanban & Vault - 하이브리드 (PC 드래그 + 모바일 좌우 버튼)
 // ============================================================
 
-// --- 전역 변수 (기존 유지) ---
-// currentUser, db, boardData, currentEditKey 는 기존 코드 그대로 사용
-
-// ---- 칸반 초기화 (SortableJS 버전) ----
 function initKanban() {
   if (!currentUser) {
     document.getElementById('col-todo').innerHTML =
@@ -24,39 +10,58 @@ function initKanban() {
   }
 
   db.ref(`users/${currentUser.uid}/tasks`).on('value', (snapshot) => {
-    const todoCol  = document.getElementById('col-todo');
+    const todoCol = document.getElementById('col-todo');
     const doingCol = document.getElementById('col-doing');
-    const doneCol  = document.getElementById('col-done');
+    const doneCol = document.getElementById('col-done');
     if (!todoCol) return;
 
-    todoCol.innerHTML  = '';
+    todoCol.innerHTML = '';
     doingCol.innerHTML = '';
-    doneCol.innerHTML  = '';
+    doneCol.innerHTML = '';
 
     boardData = snapshot.val() || {};
 
     Object.keys(boardData).forEach(key => {
       const task = boardData[key];
-
-      // ★ draggable / ondragstart 제거 → data-key 만 남김
       const card = document.createElement('div');
+
       card.className =
         'kanban-card bg-white p-4 rounded-xl shadow-sm border border-slate-100 ' +
         'cursor-grab active:cursor-grabbing hover:shadow-md transition relative group';
-      card.dataset.key = key;                       // SortableJS가 이 값을 사용
+      card.dataset.key = key;
       card.style.cssText = 'touch-action:none; -webkit-touch-callout:none;';
       card.setAttribute('oncontextmenu', 'return false;');
 
+      // 1. 상세 내용 배지 (오류 났던 부분을 안전하게 분리)
+      let detailHTML = '';
+      if (task.partner || task.equipment || task.notes) {
+        detailHTML = '<p class="text-[10px] text-indigo-500 mb-2 font-bold pointer-events-none"><i class="fa-solid fa-message mr-1"></i>상세 내용</p>';
+      }
+
+      // 2. 좌우 이동 버튼 로직 (계획엔 < 없음, 완료엔 > 없음)
+      const leftBtn = task.status !== 'todo'
+        ? `<button onclick="moveTask('${key}', '${task.status}', 'left')" class="hover:bg-slate-200 text-slate-500 w-5 h-5 rounded transition z-10 relative flex items-center justify-center"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>`
+        : ``;
+
+      const rightBtn = task.status !== 'done'
+        ? `<button onclick="moveTask('${key}', '${task.status}', 'right')" class="hover:bg-slate-200 text-slate-500 w-5 h-5 rounded transition z-10 relative flex items-center justify-center"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>`
+        : ``;
+
+      // 3. 카드 HTML 조립
       card.innerHTML = `
         <p class="text-sm font-bold text-slate-800 break-words mb-2 leading-tight pointer-events-none">
           ${task.text}
         </p>
-        ${(task.partner || task.equipment || task.notes)
-          ? '<p class="text-[10px] text-indigo-500 mb-2 font-bold pointer-events-none"><i class="fa-solid fa-message mr-1"></i>상세 내용</p>'
-          : ''}
+        ${detailHTML}
         <div class="flex justify-between items-center text-[10px] text-slate-400 font-medium mt-3 pt-2 border-t border-slate-50">
-          <span class="pointer-events-none"><i class="fa-regular fa-clock"></i> ${task.date}</span>
-          <div class="flex gap-2">
+          <div class="flex items-center gap-2">
+            <div class="flex gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-100">
+              ${leftBtn}
+              ${rightBtn}
+            </div>
+            <span class="pointer-events-none ml-1"><i class="fa-regular fa-clock"></i> ${task.date}</span>
+          </div>
+          <div class="flex gap-1">
             <button onclick="openModal('${key}')"
               class="bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 w-6 h-6 rounded-md transition relative z-10">
               <i class="fa-solid fa-pen-to-square text-xs"></i>
@@ -68,72 +73,65 @@ function initKanban() {
           </div>
         </div>`;
 
-      if      (task.status === 'todo')  todoCol.appendChild(card);
+      if (task.status === 'todo') todoCol.appendChild(card);
       else if (task.status === 'doing') doingCol.appendChild(card);
-      else if (task.status === 'done')  doneCol.appendChild(card);
+      else if (task.status === 'done') doneCol.appendChild(card);
     });
 
-    // ---- SortableJS 인스턴스 생성 ----
-    // (Firebase 리얼타임 리스너가 컬럼을 다시 그릴 때마다 재생성)
-    _initSortable(todoCol,  'todo');
+    _initSortable(todoCol, 'todo');
     _initSortable(doingCol, 'doing');
-    _initSortable(doneCol,  'done');
+    _initSortable(doneCol, 'done');
   });
 }
 
-// ---- SortableJS 내부 헬퍼 ----
+// ---- 신규 추가: 모바일용 좌우 이동 함수 ----
+function moveTask(key, currentStatus, direction) {
+  const statusFlow = ['todo', 'doing', 'done'];
+  const currentIndex = statusFlow.indexOf(currentStatus);
+  let newIndex = direction === 'right' ? currentIndex + 1 : currentIndex - 1;
+
+  if (newIndex >= 0 && newIndex < statusFlow.length && currentUser) {
+    db.ref(`users/${currentUser.uid}/tasks/${key}`).update({ status: statusFlow[newIndex] });
+  }
+}
+
+// ---- PC용 드래그 앤 드롭 (유지) ----
 function _initSortable(colEl, status) {
-  // 기존 인스턴스가 있으면 파괴 후 재생성
   if (colEl._sortableInstance) {
     colEl._sortableInstance.destroy();
   }
-
   colEl._sortableInstance = Sortable.create(colEl, {
-    group: 'kanban',          // 같은 group이면 컬럼 간 이동 가능
-    animation: 150,           // 드래그 애니메이션 (ms)
-    ghostClass: 'opacity-30', // Tailwind 유틸리티 그대로 사용
+    group: 'kanban',
+    animation: 150,
+    ghostClass: 'opacity-30',
     chosenClass: 'ring-2 ring-indigo-400 scale-105',
     dragClass: 'shadow-xl',
-
-    // 터치 디바이스 설정
-    forceFallback: false,     // SortableJS 기본 터치 감지 사용
-    fallbackOnBody: true,     // 터치 드래그 중 body에 ghost 붙임
-    scroll: true,             // 드래그 중 자동 스크롤
+    forceFallback: false,
+    fallbackOnBody: true,
+    scroll: true,
     scrollSensitivity: 60,
     scrollSpeed: 10,
-    delayOnTouchOnly: true,   // 터치에서만 딜레이 적용 (실수 드래그 방지)
-    delay: 150,               // 150ms 길게 누르면 드래그 시작
-
-    // 드래그 완료 시 Firebase 업데이트
+    delayOnTouchOnly: true,
+    delay: 150,
     onEnd(evt) {
-      const taskKey   = evt.item.dataset.key;
-      const toColEl   = evt.to;
-
-      // 컬럼 엘리먼트의 id로 새 status 결정
-      const colIdMap  = {
-        'col-todo':  'todo',
-        'col-doing': 'doing',
-        'col-done':  'done'
-      };
+      const taskKey = evt.item.dataset.key;
+      const toColEl = evt.to;
+      const colIdMap = { 'col-todo': 'todo', 'col-doing': 'doing', 'col-done': 'done' };
       const newStatus = colIdMap[toColEl.id];
-
       if (taskKey && newStatus && currentUser) {
-        db.ref(`users/${currentUser.uid}/tasks/${taskKey}`)
-          .update({ status: newStatus });
+        db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).update({ status: newStatus });
       }
     }
   });
 }
 
 // ============================================================
-// 아래 함수들은 기존 코드와 완전히 동일 (변경 없음)
+// 기존 기능들 (금고, 모달 등)
 // ============================================================
 
 function initVault() {
   if (!currentUser) {
-    document.getElementById('vaultTableBody').innerHTML =
-      '<tr><td colspan="4" class="p-8 text-center text-rose-500 font-bold">' +
-      '<i class="fa-solid fa-lock mr-2"></i>권한이 없습니다.</td></tr>';
+    document.getElementById('vaultTableBody').innerHTML = '<tr><td colspan="4" class="p-8 text-center text-rose-500 font-bold"><i class="fa-solid fa-lock mr-2"></i>권한이 없습니다.</td></tr>';
     return;
   }
   db.ref(`users/${currentUser.uid}/tasks`).once('value').then((snapshot) => {
@@ -146,9 +144,9 @@ function initVault() {
     }
     tbody.innerHTML = '';
     const statusHTML = {
-      'todo':  '<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded-md text-xs font-bold">계획</span>',
+      'todo': '<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded-md text-xs font-bold">계획</span>',
       'doing': '<span class="bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md text-xs font-bold">진행 중</span>',
-      'done':  '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md text-xs font-bold">완료</span>'
+      'done': '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md text-xs font-bold">완료</span>'
     };
     Object.keys(boardData).forEach(key => {
       const task = boardData[key];
@@ -186,11 +184,11 @@ function exportToCSV() {
 function openModal(key) {
   currentEditKey = key;
   const task = boardData[key];
-  document.getElementById('modalTitle').innerText   = task.text;
-  document.getElementById('modalPartner').value     = task.partner   || '';
-  document.getElementById('modalEquipment').value   = task.equipment || '';
-  document.getElementById('modalNotes').value       = task.notes     || '';
-  const modal    = document.getElementById('taskModal');
+  document.getElementById('modalTitle').innerText = task.text;
+  document.getElementById('modalPartner').value = task.partner || '';
+  document.getElementById('modalEquipment').value = task.equipment || '';
+  document.getElementById('modalNotes').value = task.notes || '';
+  const modal = document.getElementById('taskModal');
   const modalBox = document.getElementById('taskModalBox');
   modal.classList.remove('hidden');
   setTimeout(() => {
@@ -201,7 +199,7 @@ function openModal(key) {
 }
 
 function closeModal() {
-  const modal    = document.getElementById('taskModal');
+  const modal = document.getElementById('taskModal');
   const modalBox = document.getElementById('taskModalBox');
   modal.classList.add('opacity-0');
   modalBox.classList.remove('scale-100');
@@ -212,9 +210,9 @@ function closeModal() {
 function saveTaskDetails() {
   if (!currentEditKey || !currentUser) return;
   db.ref(`users/${currentUser.uid}/tasks/${currentEditKey}`).update({
-    partner:   document.getElementById('modalPartner').value,
+    partner: document.getElementById('modalPartner').value,
     equipment: document.getElementById('modalEquipment').value,
-    notes:     document.getElementById('modalNotes').value
+    notes: document.getElementById('modalNotes').value
   }).then(() => closeModal());
 }
 
@@ -223,9 +221,9 @@ function addNewTask() {
   const taskText = prompt("어떤 업무를 계획 중이신가요?");
   if (!taskText || taskText.trim() === "") return;
   db.ref(`users/${currentUser.uid}/tasks`).push({
-    text:   taskText,
+    text: taskText,
     status: 'todo',
-    date:   new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+    date: new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
   });
 }
 
@@ -233,6 +231,3 @@ function deleteTask(taskKey) {
   if (confirm("삭제하시겠습니까?"))
     db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).remove();
 }
-
-// ★ 아래 함수들은 SortableJS로 대체되었으므로 더 이상 사용하지 않습니다.
-// dragTask / allowDrop / dropTask → 삭제해도 무방합니다.
