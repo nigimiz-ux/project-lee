@@ -714,11 +714,10 @@
 
     function initVault() {
     if (!currentUser) {
-    document.getElementById('vaultTableBody').innerHTML =
-    '<tr>
-        <td colspan="4" class="p-8 text-center text-rose-500 font-bold">' +
-            '<i class="fa-solid fa-lock mr-2"></i>권한이 없습니다.</td>
-    </tr>';
+    document.getElementById('vaultTableBody').innerHTML = `<tr>
+        <td colspan="4" class="p-8 text-center text-rose-500 font-bold"><i class="fa-solid fa-lock mr-2"></i>권한이 없습니다.
+        </td>
+    </tr>`;
     return;
     }
     db.ref(`users/${currentUser.uid}/tasks`).once('value').then((snapshot) => {
@@ -726,10 +725,29 @@
     if (!tbody) return;
     boardData = snapshot.val() || {};
     if (Object.keys(boardData).length === 0) {
-    tbody.innerHTML = '<tr>
+    tbody.innerHTML = `<tr>
         <td colspan="4" class="p-8 text-center text-slate-500">데이터가 없습니다.</td>
-    </tr>';
+    </tr>`;
     return;
+    }
+    tbody.innerHTML = '';
+    const statusHTML = {
+    'todo': '<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded-md text-xs font-bold">계획</span>',
+    'doing': '<span class="bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md text-xs font-bold">진행 중</span>',
+    'done': '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md text-xs font-bold">완료</span>'
+    };
+    Object.keys(boardData).forEach(key => {
+    const task = boardData[key];
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-700/50 transition";
+    tr.innerHTML =
+    `<td class="p-4 font-bold text-slate-200">${task.text}</td>` +
+    `<td class="p-4">${statusHTML[task.status] || task.status}</td>` +
+    `<td class="p-4 text-slate-400 font-mono text-xs">${task.date}</td>` +
+    `<td class="p-4 text-slate-300 text-xs">${task.partner || '-'}</td>`;
+    tbody.appendChild(tr);
+    });
+    });
     }
     tbody.innerHTML = '';
     const statusHTML = {
