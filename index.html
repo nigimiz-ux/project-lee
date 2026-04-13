@@ -110,6 +110,11 @@
                         class="fa-solid fa-utensils w-5 text-orange-400 group-hover:text-orange-300 transition-colors"></i>
                     Survival Recipe
                 </button>
+                <button onclick="navigateTo('wishgo')" id="nav-wishgo"
+                    class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all group">
+                    <i class="fa-solid fa-plane-departure w-5 text-sky-400 group-hover:text-sky-300 transition-colors"></i>
+                    Wish & Go
+                </button>
                 <button onclick="window.open('https://nigimiz-ux.github.io/juns-works-way/', '_blank')"
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
                         class="fa-solid fa-rocket w-5 text-blue-400"></i> Work's Way (사내망)</button>
@@ -392,6 +397,7 @@
             'tracker': `<div class="w-full h-full animate-fade-in bg-white"><iframe src="https://nigimiz-ux.github.io/running-tracker/index.html" class="w-full h-full border-none pt-1"></iframe></div>`,
             'linkvault': '',
             'recipe': `<div class="w-full h-full flex flex-col"><iframe src="recipe-survival.html" class="w-full h-full border-0 flex-1" style="min-height: calc(100vh - 80px);"></iframe></div>`,
+            'wishgo': `<div class="w-full h-full flex flex-col"><iframe src="wish-go.html" class="w-full h-full border-0 flex-1" style="min-height: calc(100vh - 80px);"></iframe></div>`
         };
 
         const pageTitles = {
@@ -404,7 +410,8 @@
             'tracker': 'Shoe Tracker V1',
             'bookbank': 'Book Bank (Library)',
             'linkvault': 'Link Vault',
-            'recipe': 'Survival Recipe'
+            'recipe': 'Survival Recipe',
+            'wishgo': 'Wish & Go ✈︎'
         };
 
         function navigateTo(pageId) {
