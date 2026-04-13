@@ -21,8 +21,17 @@ function initKanban() {
 
     boardData = snapshot.val() || {};
 
-    Object.keys(boardData).forEach(key => {
-      const task = boardData[key];
+    const taskList = Object.keys(boardData).map(key => ({ key, ...boardData[key] }));
+    
+    taskList.sort((a, b) => {
+      const oA = a.order !== undefined ? a.order : Number.MAX_SAFE_INTEGER;
+      const oB = b.order !== undefined ? b.order : Number.MAX_SAFE_INTEGER;
+      if (oA !== oB) return oA - oB;
+      return a.key.localeCompare(b.key);
+    });
+
+    taskList.forEach(task => {
+      const key = task.key;
       const card = document.createElement('div');
 
       card.className =
@@ -46,6 +55,9 @@ function initKanban() {
         ? `<button onclick="moveTask('${key}', '${task.status}', 'right')" class="hover:bg-slate-200 text-slate-500 w-5 h-5 rounded transition z-10 relative flex items-center justify-center"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>`
         : ``;
 
+      const upBtn = `<button onclick="moveTaskVertical('${key}', '${task.status}', 'up')" class="hover:bg-slate-200 text-slate-500 w-5 h-5 rounded transition z-10 relative flex items-center justify-center"><i class="fa-solid fa-chevron-up text-[10px]"></i></button>`;
+      const downBtn = `<button onclick="moveTaskVertical('${key}', '${task.status}', 'down')" class="hover:bg-slate-200 text-slate-500 w-5 h-5 rounded transition z-10 relative flex items-center justify-center"><i class="fa-solid fa-chevron-down text-[10px]"></i></button>`;
+
       // 3. 카드 HTML 조립
       card.innerHTML = `
         <p class="text-sm font-bold text-slate-800 break-words mb-2 leading-tight pointer-events-none">
@@ -56,6 +68,8 @@ function initKanban() {
           <div class="flex items-center gap-2">
             <div class="flex gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-100">
               ${leftBtn}
+              ${upBtn}
+              ${downBtn}
               ${rightBtn}
             </div>
             <span class="pointer-events-none ml-1"><i class="fa-regular fa-clock"></i> ${task.date}</span>
@@ -81,6 +95,52 @@ function initKanban() {
     _initSortable(doingCol, 'doing');
     _initSortable(doneCol, 'done');
   });
+}
+
+// ---- 신규 추가: 모바일용 상하 이동 함수 ----
+function moveTaskVertical(taskKey, currentStatus, direction) {
+  if (!currentUser || !boardData) return;
+  
+  let colTasks = Object.keys(boardData)
+    .filter(k => boardData[k].status === currentStatus)
+    .map(k => ({ key: k, order: boardData[k].order, id: k }));
+  
+  colTasks.sort((a,b) => {
+    const oA = a.order !== undefined ? a.order : Number.MAX_SAFE_INTEGER;
+    const oB = b.order !== undefined ? b.order : Number.MAX_SAFE_INTEGER;
+    if (oA !== oB) return oA - oB;
+    return a.id.localeCompare(b.id);
+  });
+
+  colTasks.forEach((t, idx) => {
+    t.newOrder = idx * 10;
+  });
+
+  const myIdx = colTasks.findIndex(t => t.key === taskKey);
+  if (myIdx === -1) return;
+
+  if (direction === 'up' && myIdx > 0) {
+    let temp = colTasks[myIdx].newOrder;
+    colTasks[myIdx].newOrder = colTasks[myIdx - 1].newOrder;
+    colTasks[myIdx - 1].newOrder = temp;
+  } else if (direction === 'down' && myIdx < colTasks.length - 1) {
+    let temp = colTasks[myIdx].newOrder;
+    colTasks[myIdx].newOrder = colTasks[myIdx + 1].newOrder;
+    colTasks[myIdx + 1].newOrder = temp;
+  } else {
+    return;
+  }
+
+  let updates = {};
+  colTasks.forEach(t => {
+    if (boardData[t.key].order !== t.newOrder) {
+      updates[`users/${currentUser.uid}/tasks/${t.key}/order`] = t.newOrder;
+    }
+  });
+
+  if (Object.keys(updates).length > 0) {
+    db.ref().update(updates);
+  }
 }
 
 // ---- 신규 추가: 모바일용 좌우 이동 함수 ----
@@ -118,7 +178,17 @@ function _initSortable(colEl, status) {
       const colIdMap = { 'col-todo': 'todo', 'col-doing': 'doing', 'col-done': 'done' };
       const newStatus = colIdMap[toColEl.id];
       if (taskKey && newStatus && currentUser) {
-        db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).update({ status: newStatus });
+        const updates = {};
+        updates[`users/${currentUser.uid}/tasks/${taskKey}/status`] = newStatus;
+        
+        Array.from(toColEl.children).forEach((child, idx) => {
+          const k = child.dataset.key;
+          if (k) {
+            updates[`users/${currentUser.uid}/tasks/${k}/order`] = idx * 10;
+          }
+        });
+        
+        db.ref().update(updates);
       }
     }
   });
