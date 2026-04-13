@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Recipe for Survival</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+
+  <style>
+    :root {
+      --ink: #1a1410;
+      --parchment: #f5f0e8;
+      --cream: #faf7f2;
+      --rust: #c4502a;
+      --gold: #c9963b;
+      --sage: #6b7c5e;
+      --card-bg: #ffffff;
+      --border: #e8e0d0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* Grain texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    .display-font {
+      font-family: 'Playfair Display', serif;
+    }
+
+    .mono {
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Header */
+    .app-header {
+      background: var(--ink);
+      border-bottom: 3px solid var(--gold);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    /* Category pill */
+    .cat-pill {
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1.5px solid var(--border);
+      background: white;
+    }
+
+    .cat-pill:hover,
+    .cat-pill.active {
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+    }
+
+    /* Recipe card */
+    .recipe-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .recipe-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--gold);
+      transform: scaleY(0);
+      transform-origin: bottom;
+      transition: transform 0.25s ease;
+    }
+
+    .recipe-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(26, 20, 16, 0.12);
+    }
+
+    .recipe-card:hover::before {
+      transform: scaleY(1);
+    }
+
+    .cat-badge {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 2px;
+    }
+
+    .cat-파스타 {
+      background: #fde8d8;
+      color: #a33d18;
+    }
+
+    .cat-밥고기 {
+      background: #e8f0e0;
+      color: #4a5e38;
+    }
+
+    .cat-사이드 {
+      background: #ddeef4;
+      color: #2a6075;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      background: rgba(26, 20, 16, 0.7);
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-panel {
+      background: var(--cream);
+      border-top: 4px solid var(--gold);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    /* Step input */
+    .step-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      animation: stepIn 0.25s ease;
+    }
+
+    @keyframes stepIn {
+      from {
+        opacity: 0;
+        transform: translateX(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      background: var(--ink);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+      margin-top: 8px;
+    }
+
+    /* Detail modal */
+    .detail-step {
+      display: flex;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .detail-step:last-child {
+      border-bottom: none;
+    }
+
+    .detail-step-num {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      background: var(--rust);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Form inputs */
+    input,
+    textarea,
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1.5px solid var(--border);
+      background: white;
+      border-radius: 2px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--gold);
+    }
+
+    .btn-primary {
+      background: var(--ink);
+      color: white;
+      padding: 10px 24px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: var(--rust);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--ink);
+      padding: 10px 20px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      border: 1.5px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--ink);
+    }
+
+    .btn-add-step {
+      background: transparent;
+      color: var(--sage);
+      border: 1.5px dashed var(--sage);
+      padding: 7px 16px;
+      font-size: 13px;
+      font-family: 'DM Mono', monospace;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+    }
+
+    .btn-add-step:hover {
+      background: #f0f4ec;
+      color: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .btn-remove-step {
+      background: none;
+      border: none;
+      color: #ccc;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0;
+      line-height: 1;
+      margin-top: 10px;
+      transition: color 0.15s;
+    }
+
+    .btn-remove-step:hover {
+      color: var(--rust);
+    }
+
+    /* Divider rule */
+    .fancy-rule {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--gold);
+      font-size: 12px;
+    }
+
+    .fancy-rule::before,
+    .fancy-rule::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Firebase status */
+    .firebase-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+      background: #aaa;
+      margin-right: 5px;
+    }
+
+    .firebase-dot.connected {
+      background: #5cb85c;
+      box-shadow: 0 0 0 3px rgba(92, 184, 92, 0.25);
+    }
+
+    /* Scrollbar */
+    .modal-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .modal-panel::-webkit-scrollbar-track {
+      background: var(--parchment);
+    }
+
+    .modal-panel::-webkit-scrollbar-thumb {
+      background: var(--gold);
+      border-radius: 4px;
+    }
+
+    /* Card enter animation */
+    @keyframes cardIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card-animate {
+      animation: cardIn 0.3s ease forwards;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══════════════ HEADER ══════════════ -->
+  <header class="app-header px-6 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div>
+        <p class="mono text-xs text-yellow-400 tracking-widest mb-0.5">EXECUTIVE OS · FIELD MANUAL</p>
+        <h1 class="display-font text-2xl text-white leading-none">My Recipe for Survival</h1>
+      </div>
+      <div class="flex items-center gap-4">
+        <span id="firebaseStatus" class="text-xs text-gray-400 flex items-center">
+          <span class="firebase-dot" id="fbDot"></span>
+          <span id="fbLabel">로컬 모드</span>
+        </span>
+        <button id="btnOpenAdd" class="btn-primary text-sm">
+          + 레시피 추가
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════ CATEGORY FILTER ══════════════ -->
+  <div class="max-w-6xl mx-auto px-6 py-5">
+    <div class="flex flex-wrap gap-2" id="catFilters">
+      <button class="cat-pill active px-4 py-1.5 text-sm rounded-full" data-cat="전체">전체</button>
+      <button class="cat-pill px-4 py-1.5 text-sm rounded-full" data-cat="파스타">🍝 파스타</button>
+      <button class="cat-pill px-4 py-1.5 text-sm rounded-full" data-cat="밥고기">🥩 밥 &amp; 고기</button>
+      <button class="cat-pill px-4 py-1.5 text-sm rounded-full" data-cat="사이드">🥗 사이드 &amp; 음료</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ RECIPE GRID ══════════════ -->
+  <main class="max-w-6xl mx-auto px-6 pb-16">
+    <div id="recipeGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <!-- Cards injected here -->
+    </div>
+    <div id="emptyState" class="hidden text-center py-20 text-gray-400">
+      <p class="display-font italic text-3xl mb-2">레시피가 없습니다</p>
+      <p class="text-sm">첫 번째 생존 레시피를 추가해보세요</p>
+    </div>
+  </main>
+
+  <!-- ══════════════ DETAIL MODAL ══════════════ -->
+  <div id="detailModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+    <div class="modal-backdrop absolute inset-0" id="detailBackdrop"></div>
+    <div class="modal-panel relative w-full max-w-xl rounded-sm shadow-2xl p-6 sm:p-8">
+      <button id="closeDetail"
+        class="absolute top-4 right-4 text-gray-400 hover:text-ink text-2xl leading-none">&times;</button>
+
+      <p id="detailCat" class="cat-badge mb-2 inline-block"></p>
+      <h2 id="detailTitle" class="display-font text-2xl mb-1"></h2>
+      <p class="text-xs mono text-gray-400 mb-5" id="detailStepCount"></p>
+
+      <div class="fancy-rule mb-4"><span>재료</span></div>
+      <p id="detailIngredients" class="text-sm leading-relaxed mb-5 text-gray-700"></p>
+
+      <div class="fancy-rule mb-4"><span>조리 과정</span></div>
+      <div id="detailSteps" class="mb-5"></div>
+
+      <div id="detailNotesWrap" class="hidden">
+        <div class="fancy-rule mb-4"><span>주의사항</span></div>
+        <p id="detailNotes"
+          class="text-sm text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded leading-relaxed"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ ADD/EDIT MODAL ══════════════ -->
+  <div id="addModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+    <div class="modal-backdrop absolute inset-0" id="addBackdrop"></div>
+    <div class="modal-panel relative w-full max-w-xl rounded-sm shadow-2xl p-6 sm:p-8">
+      <button id="closeAdd"
+        class="absolute top-4 right-4 text-gray-400 hover:text-ink text-2xl leading-none">&times;</button>
+      <h2 class="display-font text-xl mb-6">새 레시피 추가</h2>
+
+      <!-- Category -->
+      <div class="mb-4">
+        <label class="block text-xs mono mb-1.5 uppercase tracking-wider text-gray-500">분류</label>
+        <select id="fCat">
+          <option value="파스타">🍝 파스타</option>
+          <option value="밥고기">🥩 밥 &amp; 고기</option>
+          <option value="사이드">🥗 사이드 &amp; 음료</option>
+        </select>
+      </div>
+
+      <!-- Title -->
+      <div class="mb-4">
+        <label class="block text-xs mono mb-1.5 uppercase tracking-wider text-gray-500">레시피 이름</label>
+        <input id="fTitle" type="text" placeholder="예: 궁극의 바질 페스토 파스타" />
+      </div>
+
+      <!-- Ingredients -->
+      <div class="mb-4">
+        <label class="block text-xs mono mb-1.5 uppercase tracking-wider text-gray-500">재료</label>
+        <textarea id="fIngredients" rows="3" placeholder="예: 파스타 면 150g, 올리브유, 마늘 1큐브..."></textarea>
+      </div>
+
+      <!-- Steps -->
+      <div class="mb-4">
+        <label class="block text-xs mono mb-2 uppercase tracking-wider text-gray-500">조리 단계</label>
+        <div id="stepsContainer" class="flex flex-col gap-3 mb-3"></div>
+        <button class="btn-add-step" id="btnAddStep">+ 단계 추가</button>
+      </div>
+
+      <!-- Notes -->
+      <div class="mb-6">
+        <label class="block text-xs mono mb-1.5 uppercase tracking-wider text-gray-500">주의사항 <span
+            class="text-gray-300">(선택)</span></label>
+        <textarea id="fNotes" rows="2" placeholder="예: 불을 끄는 타이밍이 중요합니다..."></textarea>
+      </div>
+
+      <div class="flex gap-3 justify-end">
+        <button id="cancelAdd" class="btn-secondary">취소</button>
+        <button id="submitAdd" class="btn-primary">저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ FIREBASE + APP SCRIPT ══════════════ -->
+  <script type="module">
+    // ─── Firebase config (사용자 환경에 맞게 교체하세요) ───────────────────────────
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDcQNHIUYSbJe8qnc4EqzRpGmQ4qufz7Ok",
+      authDomain: "aje-executive-db.firebaseapp.com",
+      databaseURL: "https://aje-executive-db-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "aje-executive-db",
+      storageBucket: "aje-executive-db.firebasestorage.app",
+      messagingSenderId: "25421275822",
+      appId: "1:25421275822:web:8de86422d025e2cd25c33f"
+    };
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    // ─── Built-in seed data ───────────────────────────────────────────────────────
+    const SEED_RECIPES = [
+      {
+        id: 'seed-1',
+        category: '파스타',
+        title: '궁극의 바질 페스토 파스타',
+        ingredients: '파스타 면 150g(불린 것), 올리브유, 다진 마늘 1큐브, 베트남 고추기름(또는 가루), 바질 페스토 2~3큐브(얼린 것)',
+        steps: [
+          '면 준비: 파스타 면을 찬물에 4시간 이상 푹 담가둔다.',
+          '기름 내고 볶기 (강불): 팬에 올리브유, 마늘, 고추기름을 넣고 볶다가 마늘이 노릇해지면 불린 면을 넣고 1~2분 강불에 볶는다. (뻑뻑하면 물 추가)',
+          '바질 코팅 (🔥불 끄기): 불을 완전히 끄고 얼려둔 페스토 큐브를 넣어 잔열에 미친 듯이 비벼준다.'
+        ],
+        notes: ''
+      },
+      {
+        id: 'seed-2',
+        category: '파스타',
+        title: '포르치니 머쉬룸 파스타',
+        ingredients: '파스타 면 150g(불린 것), 올리브유, 마늘, 머쉬룸 소스 2~3스푼, 목초 버터 1조각, 통후추',
+        steps: [
+          '소스 끓이기 (중약불): 팬에 올리브유와 마늘을 볶다가 불린 면, 물(소주잔 1잔), 머쉬룸 소스를 넣고 1분간 볶아 면에 흡착시킨다.',
+          '버터 코팅 (🔥불 끄기): 불을 끄고 목초 버터 1조각을 넣어 잔열에 비빈다.',
+          '마무리: 접시에 담고 굵은 통후추를 넉넉하게 갈아 올린다.'
+        ],
+        notes: ''
+      },
+      {
+        id: 'seed-3',
+        category: '파스타',
+        title: '참치액젓 버섯 3계란 파스타',
+        ingredients: '면 1인분, 계란 3개(흰자/노른자 분리), 버섯 소스 1큐브, 마늘 1큐브, 참치액젓 1스푼, 통후추, 올리브유',
+        steps: [
+          '불향 내기 (중불): 올리브유와 마늘을 볶다가 참치액젓 1스푼을 바로 넣어 지글지글 불향을 입힌다.',
+          '소스 완성: 흰자를 넣고 익히다가 버섯 소스 큐브와 면수 반 컵을 넣는다.',
+          '면 볶기: 삶은 면을 넣고 소스가 끈적해질 때까지 볶는다.',
+          '유화 피니시 (🔥불 끄기): 불을 끄고 5~10초 뒤 노른자를 넣거나, 뜨거운 면수 1스푼과 함께 재빨리 섞어 비린 맛을 잡는다.'
+        ],
+        notes: '비린맛 제로 비결: 노른자는 반드시 불 끄고 잔열로만 익힌다.'
+      },
+      {
+        id: 'seed-4',
+        category: '파스타',
+        title: '겉바속촉 대패삼겹 바질 파스타',
+        ingredients: '냉동 대패삼겹살 200g, 파스타 면 1인분, 바질 페스토 1~2큐브, 마늘 1큐브, 화이트 발사믹(또는 식초) 0.5스푼, 통후추',
+        steps: [
+          '고기 굽기 (강불): 기름 없이 팬을 예열하고 대패삼겹살을 바싹 볶는다.',
+          '기름 제거 (핵심): 흥건한 돼지기름을 키친타월로 70% 이상 닦아내고 마늘을 넣어 볶는다.',
+          '면 볶기: 면과 면수 반 컵을 붓고 물이 졸아들 때까지 볶는다.',
+          '바질&산미 피니시 (🔥불 끄기): 불을 끄고 바질 큐브를 잔열에 비빈 후, 화이트 발사믹과 후추로 마무리한다.'
+        ],
+        notes: '돼지기름 제거가 핵심! 70% 이상 닦지 않으면 느끼해진다.'
+      },
+      {
+        id: 'seed-5',
+        category: '밥고기',
+        title: '마늘 타지 않는 목살 덮밥',
+        ingredients: '목살, 올리브오일, 다진 마늘 1큐브, 참치액젓 1스푼, 목초 버터 1조각, 밥 1공기',
+        steps: [
+          '고기 굽기 (강불): 예열 팬에 오일을 두르고 목살 한 면을 바싹 굽고 뒤집는다.',
+          '불맛 입히기 (중약불): 불을 줄이고 빈 공간에 마늘을 넣는다. 다 익어갈 때 참치액젓 1스푼을 넣는다.',
+          '버터 피니시 (🔥불 끄기): 불을 끄고 버터를 넣어 잔열 코팅 후, 밥 위에 고기와 소스를 얹는다.'
+        ],
+        notes: ''
+      },
+      {
+        id: 'seed-6',
+        category: '밥고기',
+        title: '식당 불맛 참치 볶음밥',
+        ingredients: '참치 2캔(기름 제거), 밥 1공기, 다진 마늘 1큐브, 간장 1스푼, 굴소스 0.5스푼, 좋은 참기름, 후추',
+        steps: [
+          '파마늘 기름: 코팅팬에 올리브유와 마늘을 넣고 약불에서 향을 낸다.',
+          '참치 볶기 & 간장 태우기: 참치를 달달 볶다 한쪽으로 몰고, 빈 공간에 간장 1스푼을 끓이듯 눌어붙게 한 뒤 참치와 섞는다.',
+          '밥 볶기: 밥을 넣고 가르듯 볶으며 굴소스로 간을 맞춘다.',
+          '참기름 피니시 (🔥불 끄기): 불을 끄고 참기름 1스푼과 후추를 뿌려 잔열에 섞는다.'
+        ],
+        notes: ''
+      },
+      {
+        id: 'seed-7',
+        category: '밥고기',
+        title: '단짠 갈비맛 목살 스테이크 (글레이징)',
+        ingredients: '생목살, 올리브유, 소금, 후추, 다진 마늘 1큐브, 정육점 간장 소스',
+        steps: [
+          '마이야르 (강불): 목살 겉면을 튀기듯 바싹 구워 육즙을 가둔다.',
+          '마늘 볶기 (중불): 고기를 자르고 나온 기름에 마늘을 넣어 볶는다.',
+          '글레이징 (약불): 불을 3단으로 확 낮추고 정육점 소스를 고기 위에 부어 끈적하게 코팅한다.'
+        ],
+        notes: '글레이징 소스는 반드시 약불에서! 고불이면 탄다.'
+      },
+      {
+        id: 'seed-8',
+        category: '밥고기',
+        title: '시나몬 목살 야채 볶음',
+        ingredients: '깍둑 목살, 냉동 야채 1줌, 양조간장 1스푼, 굴소스 0.5스푼, 버터 1조각, 후추, 코스트코 시나몬 가루',
+        steps: [
+          '고기 마이야르 (강불): 깍둑 목살을 모든 겉면이 바싹 익도록 굽는다.',
+          '야채 코팅: 물기 뺀 냉동 야채를 넣고 돼지기름에 볶는다.',
+          '간장 코팅: 빈 공간에 간장과 굴소스를 끓여 불향을 낸 뒤 재료와 섞는다.',
+          '비밀 무기 (🔥불 끄기): 불을 끄고 버터를 녹인 뒤, 시나몬 가루를 젓가락 끝으로 살짝만 묻혀 톡 뿌리고 후추로 마무리한다.'
+        ],
+        notes: '시나몬은 극소량만! 젓가락 끝에 묻히는 정도로 충분하다.'
+      },
+      {
+        id: 'seed-9',
+        category: '밥고기',
+        title: '겉바속촉 삼겹살 야채 정식',
+        ingredients: '삼겹살 600g, 냉동 야채 2줌, 마늘 1~2큐브, 화이트 발사믹(또는 식초) 1스푼',
+        steps: [
+          '마이야르: 쿡셀 예열 후 삼겹살 6면 전체를 건드리지 않고 튀기듯 바싹 굽는다.',
+          '기름 조절: 넘치는 기름을 반쯤 닦아내고 마늘을 넣는다.',
+          '야채 강불 볶기: 물기를 짠 야채를 넣고 강불(8~9단)로 수분을 순식간에 날린다.',
+          '산미 피니시 (🔥불 끄기): 불을 끄고 발사믹 1스푼을 팬에 칙- 소리 나게 뿌려 느끼함을 잡는다.'
+        ],
+        notes: '쿡셀 전용 레시피. 6면 마이야르가 핵심, 절대 뒤집지 말 것!'
+      },
+      {
+        id: 'seed-10',
+        category: '사이드',
+        title: '와퍼 단짝 생존 세트',
+        ingredients: '사과식초 1~2스푼, 탄산수, 냉동 야채 1줌, 이즈니 치즈, 올리브유, 소금, 후추',
+        steps: [
+          '애사비 에이드: 얼음 컵에 사과식초 1~2스푼, 탄산수를 붓고 젓는다. (알룰로스 선택)',
+          '야채 해동: 냉동 야채를 전자레인지에 1분 돌리고 물기를 완벽히 제거한다.',
+          '웜 샐러드: 따뜻한 야채에 올리브유, 소금, 후추를 섞고 이즈니 치즈를 찢어 올려 잔열로 녹인다.'
+        ],
+        notes: '감튀/콜라 대체 세트. 애사비 에이드는 식후혈당 관리에도 탁월.'
+      }
+    ];
+
+    // ─── State ────────────────────────────────────────────────────────────────────
+    let recipes = [...SEED_RECIPES];
+    let activeCategory = '전체';
+    let db = null;
+    let currentUser = null;
+    let stepCount = 1;
+
+    // ─── Firebase init (optional) ─────────────────────────────────────────────────
+    async function initFirebase() {
+      try {
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+        const { getDatabase, ref, push, onValue, serverTimestamp } =
+          await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+        const { getAuth, onAuthStateChanged } =
+          await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+
+        if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') return; // placeholder guard
+
+        const app = initializeApp(FIREBASE_CONFIG);
+        db = getDatabase(app);
+        const auth = getAuth(app);
+
+        onAuthStateChanged(auth, user => {
+          if (!user) return;
+          currentUser = user;
+          document.getElementById('fbDot').classList.add('connected');
+          document.getElementById('fbLabel').textContent = 'Firebase 연결됨';
+
+          const recipeRef = ref(db, `users/${user.uid}/recipes`);
+          onValue(recipeRef, snap => {
+            const fbRecipes = [];
+            snap.forEach(child => {
+              fbRecipes.push({ id: child.key, ...child.val() });
+            });
+            if (fbRecipes.length > 0) {
+              recipes = [...SEED_RECIPES, ...fbRecipes];
+            }
+            renderGrid();
+          });
+        });
+      } catch (e) {
+        console.warn('Firebase 초기화 실패 (로컬 모드로 동작):', e.message);
+      }
+    }
+
+    async function saveToFirebase(recipe) {
+      if (!db || !currentUser) return null;
+      try {
+        const { getDatabase, ref, push, serverTimestamp } =
+          await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+        const recipeRef = ref(db, `users/${currentUser.uid}/recipes`);
+        await push(recipeRef, { ...recipe, createdAt: serverTimestamp() });
+        return true;
+      } catch (e) {
+        console.error('Firebase 저장 실패:', e);
+        return false;
+      }
+    }
+
+    // ─── Render ───────────────────────────────────────────────────────────────────
+    const catEmoji = { '파스타': '🍝', '밥고기': '🥩', '사이드': '🥗' };
+
+    function renderGrid() {
+      const grid = document.getElementById('recipeGrid');
+      const empty = document.getElementById('emptyState');
+      const filtered = activeCategory === '전체'
+        ? recipes
+        : recipes.filter(r => r.category === activeCategory);
+
+      grid.innerHTML = '';
+      if (filtered.length === 0) { empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+
+      filtered.forEach((r, i) => {
+        const card = document.createElement('div');
+        card.className = 'recipe-card p-5 card-animate';
+        card.style.animationDelay = `${i * 0.04}s`;
+        card.style.opacity = '0';
+        card.innerHTML = `
+        <span class="cat-badge cat-${r.category} mb-3 inline-block">${catEmoji[r.category] || ''} ${r.category}</span>
+        <h3 class="display-font text-base leading-snug mb-3">${r.title}</h3>
+        <p class="text-xs text-gray-400 leading-relaxed line-clamp-2">${r.ingredients}</p>
+        <div class="mt-4 pt-3 border-t border-dashed border-gray-100 flex items-center justify-between">
+          <span class="mono text-xs text-gray-400">${r.steps.length}단계</span>
+          <span class="text-xs text-gold" style="color:var(--gold)">레시피 보기 →</span>
+        </div>
+      `;
+        card.addEventListener('click', () => openDetail(r));
+        grid.appendChild(card);
+      });
+    }
+
+    // ─── Detail modal ─────────────────────────────────────────────────────────────
+    function openDetail(r) {
+      document.getElementById('detailCat').textContent = `${catEmoji[r.category] || ''} ${r.category}`;
+      document.getElementById('detailCat').className = `cat-badge cat-${r.category} mb-2 inline-block`;
+      document.getElementById('detailTitle').textContent = r.title;
+      document.getElementById('detailStepCount').textContent = `총 ${r.steps.length}단계`;
+      document.getElementById('detailIngredients').textContent = r.ingredients;
+
+      const stepsEl = document.getElementById('detailSteps');
+      stepsEl.innerHTML = r.steps.map((s, i) => `
+      <div class="detail-step">
+        <div class="detail-step-num">${i + 1}</div>
+        <p class="text-sm leading-relaxed pt-1">${s}</p>
+      </div>
+    `).join('');
+
+      if (r.notes) {
+        document.getElementById('detailNotes').textContent = r.notes;
+        document.getElementById('detailNotesWrap').classList.remove('hidden');
+      } else {
+        document.getElementById('detailNotesWrap').classList.add('hidden');
+      }
+
+      document.getElementById('detailModal').classList.remove('hidden');
+    }
+
+    document.getElementById('closeDetail').addEventListener('click', () =>
+      document.getElementById('detailModal').classList.add('hidden'));
+    document.getElementById('detailBackdrop').addEventListener('click', () =>
+      document.getElementById('detailModal').classList.add('hidden'));
+
+    // ─── Add modal ────────────────────────────────────────────────────────────────
+    function openAddModal() {
+      stepCount = 1;
+      document.getElementById('fTitle').value = '';
+      document.getElementById('fIngredients').value = '';
+      document.getElementById('fNotes').value = '';
+      const container = document.getElementById('stepsContainer');
+      container.innerHTML = '';
+      addStepField();
+      document.getElementById('addModal').classList.remove('hidden');
+    }
+
+    function addStepField() {
+      stepCount = document.querySelectorAll('.step-item').length + 1;
+      const container = document.getElementById('stepsContainer');
+      const div = document.createElement('div');
+      div.className = 'step-item';
+      div.innerHTML = `
+      <div class="step-number">${stepCount}</div>
+      <textarea class="step-input flex-1" rows="2" placeholder="${stepCount}단계 내용을 입력하세요..."></textarea>
+      ${stepCount > 1 ? '<button class="btn-remove-step remove-step" title="단계 삭제">×</button>' : '<span style="width:18px"></span>'}
+    `;
+      container.appendChild(div);
+      renumberSteps();
+    }
+
+    function renumberSteps() {
+      document.querySelectorAll('.step-item').forEach((item, i) => {
+        item.querySelector('.step-number').textContent = i + 1;
+      });
+    }
+
+    document.getElementById('stepsContainer').addEventListener('click', e => {
+      if (e.target.classList.contains('remove-step')) {
+        e.target.closest('.step-item').remove();
+        renumberSteps();
+      }
+    });
+
+    document.getElementById('btnAddStep').addEventListener('click', addStepField);
+
+    document.getElementById('btnOpenAdd').addEventListener('click', openAddModal);
+    document.getElementById('closeAdd').addEventListener('click', () =>
+      document.getElementById('addModal').classList.add('hidden'));
+    document.getElementById('cancelAdd').addEventListener('click', () =>
+      document.getElementById('addModal').classList.add('hidden'));
+    document.getElementById('addBackdrop').addEventListener('click', () =>
+      document.getElementById('addModal').classList.add('hidden'));
+
+    document.getElementById('submitAdd').addEventListener('click', async () => {
+      const title = document.getElementById('fTitle').value.trim();
+      const ingredients = document.getElementById('fIngredients').value.trim();
+      const category = document.getElementById('fCat').value;
+      const notes = document.getElementById('fNotes').value.trim();
+      const stepEls = document.querySelectorAll('.step-input');
+      const steps = Array.from(stepEls).map(el => el.value.trim()).filter(Boolean);
+
+      if (!title || !ingredients || steps.length === 0) {
+        alert('레시피 이름, 재료, 조리 단계를 모두 입력해주세요.');
+        return;
+      }
+
+      const newRecipe = {
+        id: 'local-' + Date.now(),
+        category,
+        title,
+        ingredients,
+        steps,
+        notes
+      };
+
+      // Firebase 저장 시도
+      const saved = await saveToFirebase(newRecipe);
+      if (!saved) {
+        // Firebase 없으면 로컬에만 추가
+        recipes.push(newRecipe);
+        renderGrid();
+      }
+      // Firebase onValue가 있으면 자동 re-render됨
+
+      document.getElementById('addModal').classList.add('hidden');
+    });
+
+    // ─── Category filter ──────────────────────────────────────────────────────────
+    document.getElementById('catFilters').addEventListener('click', e => {
+      const btn = e.target.closest('[data-cat]');
+      if (!btn) return;
+      activeCategory = btn.dataset.cat;
+      document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      renderGrid();
+    });
+
+    // ─── Init ─────────────────────────────────────────────────────────────────────
+    initFirebase();
+    renderGrid();
+  </script>
+
+</body>
+
+</html>
