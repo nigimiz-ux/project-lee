@@ -115,6 +115,11 @@
                     <i class="fa-solid fa-plane-departure w-5 text-sky-400 group-hover:text-sky-300 transition-colors"></i>
                     Wish & Go
                 </button>
+                <button onclick="navigateTo('mindvault')" id="nav-mindvault"
+                    class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all group">
+                    <i class="fa-solid fa-leaf w-5 text-emerald-400 group-hover:text-emerald-300 transition-colors"></i>
+                    Mind Vault
+                </button>
                 <button onclick="window.open('https://nigimiz-ux.github.io/juns-works-way/', '_blank')"
                     class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-300"><i
                         class="fa-solid fa-rocket w-5 text-blue-400"></i> Work's Way (사내망)</button>
@@ -229,16 +234,29 @@
                 <div class="max-w-4xl mx-auto">
                     <div class="bg-indigo-600 p-8 rounded-3xl shadow-lg mb-8 text-white flex items-center justify-between">
                         <div>
-                            <h2 class="text-3xl font-black mb-2">Project LEE V3.7</h2>
-                            <p class="text-indigo-200">삶의 여유를 향한 Wish & go 완성</p>
+                            <h2 class="text-3xl font-black mb-2">Project LEE V3.8</h2>
+                            <p class="text-indigo-200">Mind Vault 마음 보관소 통합</p>
                         </div>
-                        <i class="fa-solid fa-plane-departure text-6xl text-indigo-400 opacity-50"></i>
+                        <i class="fa-solid fa-leaf text-6xl text-indigo-400 opacity-50"></i>
                     </div>
 <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
     
     <h3 class="text-xl font-bold text-slate-800 mb-6 border-b pb-4"><i class="fa-solid fa-clock-rotate-left mr-2 text-indigo-500"></i>Update History</h3>
     
     <div class="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+
+        <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+            <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-emerald-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                <i class="fa-solid fa-leaf"></i>
+            </div>
+            <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-bold text-slate-800">V3.8 - Mind Vault 마음 보관소 도입</h4>
+                    <span class="text-xs font-bold px-2 py-1 bg-emerald-100 text-emerald-600 rounded">2026-04-14</span>
+                </div>
+                <p class="text-sm text-slate-600 leading-relaxed">자신만의 명언과 다짐들을 체계적으로 보관하는 Mind Vault 통합. Firebase 데이터 클라우드 연동 완료 🌱</p>
+            </div>
+        </div>
     
         <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
             <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-sky-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
@@ -247,7 +265,7 @@
             <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm">
                 <div class="flex items-center justify-between mb-2">
                     <h4 class="font-bold text-slate-800">V3.7 - 삶의 여유를 향한 Wish & go 완성</h4>
-                    <span class="text-xs font-bold px-2 py-1 bg-sky-100 text-sky-600 rounded">2026-04-14</span>
+                    <span class="text-xs font-bold px-2 py-1 bg-slate-200 text-slate-600 rounded">최최근</span>
                 </div>
                 <p class="text-sm text-slate-600 leading-relaxed">파편적으로 흩어져 있었던 여행, 레져, 음식 등의 주요 정보를 한 곳에 모아 언제든 출발할 준비 완료 ✈️🏕️🍷</p>
             </div>
@@ -260,7 +278,7 @@
             <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm">
                 <div class="flex items-center justify-between mb-2">
                     <h4 class="font-bold text-slate-800">V3.6 - 생존 레시피 완성</h4>
-                    <span class="text-xs font-bold px-2 py-1 bg-slate-200 text-slate-600 rounded">최최근</span>
+                    <span class="text-xs font-bold px-2 py-1 bg-slate-200 text-slate-600 rounded">최근</span>
                 </div>
                 <p class="text-sm text-slate-600 leading-relaxed">코스트코 식재료 기반 생존 요리책(<span class="font-bold text-orange-500">Survival Recipe</span>) 앱 통합 완료. 파이어베이스 연동 및 Iframe 기반 SPA 구조 완벽 이식.</p>
             </div>
@@ -273,7 +291,7 @@
             <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm">
                 <div class="flex items-center justify-between mb-2">
                     <h4 class="font-bold text-slate-800">V3.5 - 개인 클라우드 저장소</h4>
-                    <span class="text-xs font-bold px-2 py-1 bg-slate-200 text-slate-600 rounded">최근</span>
+                    <span class="text-xs font-bold text-slate-400">이전</span>
                 </div>
                 <p class="text-sm text-slate-600 leading-relaxed">Google Drive API 기반 개인 클라우드 저장소(<span class="font-bold text-blue-500">LEE's Personal Repository</span>) 연동 완료. (Vibe Coding 성과!)</p>
             </div>
@@ -410,7 +428,8 @@
             'tracker': `<div class="w-full h-full animate-fade-in bg-white"><iframe src="https://nigimiz-ux.github.io/running-tracker/index.html" class="w-full h-full border-none pt-1"></iframe></div>`,
             'linkvault': '',
             'recipe': `<div class="w-full h-full flex flex-col"><iframe src="recipe-survival.html" class="w-full h-full border-0 flex-1" style="min-height: calc(100vh - 80px);"></iframe></div>`,
-            'wishgo': `<div class="w-full h-full flex flex-col"><iframe src="wish-go.html" class="w-full h-full border-0 flex-1" style="min-height: calc(100vh - 80px);"></iframe></div>`
+            'wishgo': `<div class="w-full h-full flex flex-col"><iframe src="wish-go.html" class="w-full h-full border-0 flex-1" style="min-height: calc(100vh - 80px);"></iframe></div>`,
+            'mindvault': `<div class="w-full h-full flex flex-col"><iframe src="Mindvault.html" class="w-full h-full border-0 flex-1" style="min-height: calc(100vh - 80px);"></iframe></div>`
         };
 
         const pageTitles = {
@@ -424,7 +443,8 @@
             'bookbank': 'Book Bank (Library)',
             'linkvault': 'Link Vault',
             'recipe': 'Survival Recipe',
-            'wishgo': 'Wish & Go ✈︎'
+            'wishgo': 'Wish & Go ✈︎',
+            'mindvault': 'Mind Vault · 마음 보관소'
         };
 
         function navigateTo(pageId) {

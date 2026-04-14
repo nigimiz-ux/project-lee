@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mind Vault · 마음 보관소</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1a1814;
+            --bg2: #201e1a;
+            --bg3: #252219;
+            --paper: #2a2620;
+            --card: #2e2b24;
+            --border: #3d3930;
+            --border-light: #4a4540;
+            --text-primary: #e8e0d0;
+            --text-secondary: #a89880;
+            --text-muted: #6a6055;
+            --accent: #c8a96e;
+            --accent-dim: #9a7d4e;
+            --accent-glow: rgba(200, 169, 110, 0.15);
+            --red: #c0624a;
+            --green: #7a9e7e;
+            --tag-불교: #6b8fa8;
+            --tag-뇌과학: #7a8e6e;
+            --tag-인생수칙: #9e7a5e;
+            --tag-다짐: #8a6e9e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text-primary);
+            font-family: 'Noto Serif KR', 'Noto Sans KR', serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Subtle noise texture */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 18px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(26, 24, 20, 0.98), rgba(26, 24, 20, 0));
+        }
+
+        .logo {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.05rem;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            color: var(--accent);
+            opacity: 0.9;
+        }
+
+        .logo span {
+            color: var(--text-secondary);
+            font-weight: 300;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            margin-left: 10px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-icon:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        /* Main card area */
+        .main {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 100px 20px 120px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Category filter */
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-btn {
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--border-light);
+            color: var(--text-secondary);
+        }
+
+        .filter-btn.active {
+            background: var(--accent-glow);
+            border-color: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        /* Card */
+        .card-wrapper {
+            width: 100%;
+            max-width: 680px;
+            position: relative;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 52px 56px;
+            position: relative;
+            box-shadow:
+                0 2px 4px rgba(0, 0, 0, 0.4),
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            animation: fadeIn 0.6s ease forwards;
+        }
+
+        /* Washi paper lines effect */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 27px,
+                    rgba(255, 255, 255, 0.015) 27px,
+                    rgba(255, 255, 255, 0.015) 28px);
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .card-corner {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-color: var(--accent-dim);
+            border-style: solid;
+            opacity: 0.5;
+        }
+
+        .card-corner.tl {
+            top: 10px;
+            left: 10px;
+            border-width: 1px 0 0 1px;
+        }
+
+        .card-corner.tr {
+            top: 10px;
+            right: 10px;
+            border-width: 1px 1px 0 0;
+        }
+
+        .card-corner.bl {
+            bottom: 10px;
+            left: 10px;
+            border-width: 0 0 1px 1px;
+        }
+
+        .card-corner.br {
+            bottom: 10px;
+            right: 10px;
+            border-width: 0 1px 1px 0;
+        }
+
+        .card-category {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.68rem;
+            font-weight: 300;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .cat-불교 {
+            color: var(--tag-불교);
+        }
+
+        .cat-불교 .category-dot {
+            background: var(--tag-불교);
+        }
+
+        .cat-뇌과학 {
+            color: var(--tag-뇌과학);
+        }
+
+        .cat-뇌과학 .category-dot {
+            background: var(--tag-뇌과학);
+        }
+
+        .cat-인생수칙 {
+            color: var(--tag-인생수칙);
+        }
+
+        .cat-인생수칙 .category-dot {
+            background: var(--tag-인생수칙);
+        }
+
+        .cat-다짐 {
+            color: var(--tag-다짐);
+        }
+
+        .cat-다짐 .category-dot {
+            background: var(--tag-다짐);
+        }
+
+        .card-content {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.08rem;
+            font-weight: 300;
+            line-height: 2.0;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-break: keep-all;
+        }
+
+        .card-source {
+            margin-top: 28px;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-align: right;
+        }
+
+        .card-source::before {
+            content: '— ';
+            color: var(--accent-dim);
+        }
+
+        .card-actions {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .card:hover .card-actions {
+            opacity: 1;
+        }
+
+        .card-action-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--border);
+            background: var(--bg2);
+            color: var(--text-muted);
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            transition: all 0.15s;
+        }
+
+        .card-action-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .card-action-btn.delete:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        /* Navigation */
+        .nav-area {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-top: 40px;
+        }
+
+        .nav-btn {
+            width: 48px;
+            height: 48px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+            transform: scale(1.05);
+        }
+
+        .nav-counter {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        /* Shuffle btn */
+        .btn-shuffle {
+            padding: 8px 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 2px;
+        }
+
+        .btn-shuffle:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        /* List view */
+        .list-view {
+            display: none;
+            width: 100%;
+            max-width: 720px;
+            padding: 100px 20px 120px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .list-view.active {
+            display: block;
+        }
+
+        .main.list-active {
+            display: none;
+        }
+
+        .list-header {
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .list-title {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            letter-spacing: 0.1em;
+        }
+
+        .list-item {
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .list-item:hover {
+            padding-left: 8px;
+        }
+
+        .list-item-category {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            padding: 3px 8px;
+            border-radius: 2px;
+            white-space: nowrap;
+            margin-top: 3px;
+            flex-shrink: 0;
+        }
+
+        .bg-불교 {
+            background: rgba(107, 143, 168, 0.15);
+            color: var(--tag-불교);
+        }
+
+        .bg-뇌과학 {
+            background: rgba(122, 142, 110, 0.15);
+            color: var(--tag-뇌과학);
+        }
+
+        .bg-인생수칙 {
+            background: rgba(158, 122, 94, 0.15);
+            color: var(--tag-인생수칙);
+        }
+
+        .bg-다짐 {
+            background: rgba(138, 110, 158, 0.15);
+            color: var(--tag-다짐);
+        }
+
+        .list-item-text {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 0.88rem;
+            font-weight: 300;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            flex: 1;
+        }
+
+        .list-item-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        /* Modal / Panel */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 200;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .overlay.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .panel {
+            background: var(--paper);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            padding: 36px;
+            width: 100%;
+            max-width: 680px;
+            animation: slideUp 0.3s ease;
+        }
+
+        .panel-title {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-bottom: 28px;
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 4px;
+        }
+
+        .panel-close:hover {
+            color: var(--text-secondary);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            font-family: 'Noto Serif KR', serif;
+            font-size: 0.9rem;
+            font-weight: 300;
+            line-height: 1.7;
+            border-radius: 3px;
+            outline: none;
+            transition: border-color 0.2s;
+            resize: vertical;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            border-color: var(--accent-dim);
+        }
+
+        .form-select option {
+            background: var(--bg3);
+        }
+
+        .form-textarea {
+            min-height: 140px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--accent-dim);
+            color: var(--accent);
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.8rem;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-glow);
+        }
+
+        /* Confirm delete */
+        .confirm-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--paper);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 32px;
+            z-index: 300;
+            width: 320px;
+            display: none;
+        }
+
+        .confirm-box.active {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .confirm-text {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 0.9rem;
+            font-weight: 300;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 24px;
+        }
+
+        .confirm-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-cancel,
+        .btn-delete {
+            flex: 1;
+            padding: 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            transition: all 0.15s;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-cancel:hover {
+            color: var(--text-secondary);
+        }
+
+        .btn-delete {
+            background: transparent;
+            border: 1px solid var(--red);
+            color: var(--red);
+        }
+
+        .btn-delete:hover {
+            background: rgba(192, 98, 74, 0.1);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(40px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes cardFade {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card-animate {
+            animation: cardFade 0.4s ease forwards;
+        }
+
+        /* View toggle */
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+        }
+
+        .toggle-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: all 0.15s;
+        }
+
+        .toggle-btn.active {
+            border-color: var(--accent-dim);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        /* Firebase auth note */
+        .auth-note {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            z-index: 50;
+            white-space: nowrap;
+        }
+
+        .progress-dots {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: all 0.2s;
+        }
+
+        .dot.active {
+            background: var(--accent);
+        }
+
+        /* Edit mode in card */
+        .card-edit-content {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.08rem;
+            font-weight: 300;
+            line-height: 2.0;
+            color: var(--text-primary);
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            outline: none;
+            resize: none;
+            padding-bottom: 8px;
+            min-height: 100px;
+        }
+
+        .card-edit-source {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            outline: none;
+            width: 100%;
+            padding: 8px 0;
+            text-align: right;
+            margin-top: 16px;
+        }
+
+        .card-edit-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            justify-content: flex-end;
+        }
+
+        .btn-save,
+        .btn-cancel-edit {
+            padding: 6px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            transition: all 0.15s;
+        }
+
+        .btn-save {
+            background: var(--accent-glow);
+            border: 1px solid var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .btn-cancel-edit {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        /* Loading */
+        .loading {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 0.2em;
+            text-align: center;
+            padding: 40px;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 36px 28px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                padding: 16px 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            心 Vault
+            <span>마음 보관소</span>
+        </div>
+        <div class="header-actions">
+            <div class="view-toggle">
+                <button class="toggle-btn active" id="viewCard" title="카드 보기" onclick="setView('card')">◫</button>
+                <button class="toggle-btn" id="viewList" title="목록 보기" onclick="setView('list')">≡</button>
+            </div>
+            <button class="btn-icon" onclick="openAdd()" title="추가">＋</button>
+        </div>
+    </header>
+
+    <!-- Card View -->
+    <main class="main" id="mainView">
+        <div class="filter-bar" id="filterBar">
+            <button class="filter-btn active" onclick="setFilter('all', this)">전체</button>
+            <button class="filter-btn" onclick="setFilter('불교', this)">불교</button>
+            <button class="filter-btn" onclick="setFilter('뇌과학', this)">뇌과학</button>
+            <button class="filter-btn" onclick="setFilter('인생수칙', this)">인생수칙</button>
+            <button class="filter-btn" onclick="setFilter('다짐', this)">다짐</button>
+        </div>
+
+        <div class="card-wrapper" id="cardWrapper">
+            <div class="loading">불러오는 중…</div>
+        </div>
+
+        <div class="nav-area">
+            <button class="nav-btn" onclick="navigate(-1)">←</button>
+            <span class="nav-counter" id="navCounter">— / —</span>
+            <button class="nav-btn" onclick="navigate(1)">→</button>
+        </div>
+
+        <div class="progress-dots" id="progressDots"></div>
+
+        <div style="margin-top: 24px;">
+            <button class="btn-shuffle" onclick="shuffle()">↺ 랜덤</button>
+        </div>
+    </main>
+
+    <!-- List View -->
+    <div class="list-view" id="listView">
+        <div class="list-header">
+            <div class="list-title">보관된 마음들</div>
+        </div>
+        <div id="listItems"></div>
+    </div>
+
+    <!-- Add/Edit Overlay -->
+    <div class="overlay" id="addOverlay" onclick="closeOverlayOnBg(event)">
+        <div class="panel">
+            <div class="panel-title">
+                <span id="panelTitle">새 마음 담기</span>
+                <button class="panel-close" onclick="closePanel()">✕</button>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">카테고리</label>
+                    <select class="form-select" id="formCategory">
+                        <option value="불교">불교</option>
+                        <option value="뇌과학">뇌과학</option>
+                        <option value="인생수칙">인생수칙</option>
+                        <option value="다짐">다짐</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">출처 (선택)</label>
+                    <input type="text" class="form-input" id="formSource" placeholder="법구경, 스스로…">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">내용</label>
+                <textarea class="form-textarea" id="formContent" placeholder="마음에 담을 글귀를 적어주세요…"></textarea>
+            </div>
+            <button class="btn-primary" onclick="saveCard()">보관하기</button>
+        </div>
+    </div>
+
+    <!-- Confirm Delete -->
+    <div class="overlay" id="confirmOverlay" onclick="closeConfirmOnBg(event)">
+        <div class="confirm-box active" style="position:relative;top:auto;left:auto;transform:none;margin-bottom:20px;">
+            <div class="confirm-text">이 마음을 보관소에서<br>놓아 보내겠습니까?</div>
+            <div class="confirm-btns">
+                <button class="btn-cancel" onclick="closeConfirm()">머물게 두기</button>
+                <button class="btn-delete" onclick="confirmDelete()">놓아 보내기</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="auth-note" id="authNote">※ Firebase 설정 후 클라우드 저장이 활성화됩니다</div>
+
+    <script>
+        // ── Firebase Config ── 아래 본인의 Firebase 설정으로 교체하세요
+        const firebaseConfig = {
+            apiKey: "AIzaSyDcQNHIUYSbJe8qnc4EqzRpGmQ4qufz7Ok",
+            authDomain: "aje-executive-db.firebaseapp.com",
+            databaseURL: "https://aje-executive-db-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "aje-executive-db",
+            storageBucket: "aje-executive-db.firebasestorage.app",
+            messagingSenderId: "25421275822",
+            appId: "1:25421275822:web:8de86422d025e2cd25c33f"
+        };
+
+        // ── Seed Data ──
+        const SEED = [
+            // 불가지론적 유물론자 - 인생수칙
+            { id: 's1', category: '인생수칙', content: '몸(Hardware)은 기계처럼 관리한다.\n\n철저하고 꾸준한 운동(월기준 러닝 200km이상, 수영 4회, 근육운동 4회), 썬크림, 영양 섭취 등은 철저히 과학적/유물론적으로 접근하여 최적의 성능을 유지한다.', source: '불가지론적 유물론자' },
+            { id: 's2', category: '인생수칙', content: '마음(Software)은 손님처럼 대한다.\n\n우울하거나 화가 날 때 "내 영혼이 병들었어"라고 심각해지는 대신, "아, 도파민 수치가 떨어졌네" 혹은 "전두엽이 지쳤군" 하고 쿨하게 넘긴다.', source: '불가지론적 유물론자' },
+            { id: 's3', category: '인생수칙', content: '그 너머(Beyond)에는 열린 마음을 둔다.\n\n과학이 설명 못 하는 죽음이나 우주의 근본 앞에서는 "모름(Don\'t Know)"을 인정하고 겸허해진다. 굳이 억지 논리를 가져다 붙이지 않는다.', source: '불가지론적 유물론자' },
+
+            // 어느 날 아침 문득
+            { id: 's4', category: '인생수칙', content: '자랑을 말하지 마라\n시기와 질투가 상대방에게 전달된다\n\n고민을 말하지 마라\n상대방은 이것을 약점으로 이용할 것이다', source: '' },
+            { id: 's5', category: '인생수칙', content: '100년도 못 사는 인간들에게 말하여 상의하지 말고\n100년 간 치열하게 인생이 무엇인지를 탐구한 선현들의 책에서 길을 찾아라\n\n자신을 등불삼고 몇 몇 분의 진리를 길잡이 삼아\n홀로 걸어가라', source: '' },
+            { id: 's6', category: '다짐', content: '지금 부터 금주하라!\n피치못할 술자리의 경우 목숨건다는 생각으로 절주하라!!', source: '' },
+
+            // 내가 틀릴 수도 있다
+            { id: 's7', category: '인생수칙', content: '내가 틀릴 수도 있다.', source: '' },
+
+            // 어느 교수의 말
+            { id: 's8', category: '인생수칙', content: '갈까 말까 할때는 가라\n살까 말까 할때는 사지마라\n말할까 말까 할때는 말하지 마라\n줄까 말까 할때는 줘라\n먹을까 말까 할때는 먹지마라', source: '어느 교수' },
+
+            // 20가지 인생원칙
+            { id: 's9', category: '인생수칙', content: '사람 잘 안 변한다. 특히 "내가 저 사람 바꿔보겠노라"하는 건 허상에 가깝다.', source: '20가지 인생원칙 1' },
+            { id: 's10', category: '인생수칙', content: '좋게 할 수 있는 말을 꼬아서 하는 사람 멀리해라. 니 속만 터진다.', source: '20가지 인생원칙 2' },
+            { id: 's11', category: '인생수칙', content: '일단 시작해라. 망설일 시간 없다. 조건, 환경 다 따지면 결국 암껏두 못한다.', source: '20가지 인생원칙 3' },
+            { id: 's12', category: '인생수칙', content: '친구 몇 명인지 그거 별로 안 중요하다. 내 맘 터놓을 수 있는 한 둘이면 족하다.', source: '20가지 인생원칙 4' },
+            { id: 's13', category: '인생수칙', content: '100%의 공감과 100%의 이해를 사람에게 바라면 상처만 늘어난다.', source: '20가지 인생원칙 5' },
+            { id: 's14', category: '인생수칙', content: '세상 사는 거 원래 내 맘 같지 않다. "살다 보면 이럴 수도 있지" 생각해라', source: '20가지 인생원칙 6' },
+            { id: 's15', category: '인생수칙', content: '시간 약속 잘 지키면 어디서든 반은 간다. 고작 그걸로 밉보이지 마라.', source: '20가지 인생원칙 7' },
+            { id: 's16', category: '인생수칙', content: '부모님 건강 검진 잘 시켜드리고, 스스로도 챙겨 받아라. 건강이 최고다.', source: '20가지 인생원칙 8' },
+            { id: 's17', category: '인생수칙', content: '무작정 "넌 못할 거야" 하는 사람, 꺼지라고 해라. 어차피 니 인생이다.', source: '20가지 인생원칙 9' },
+            { id: 's18', category: '인생수칙', content: '죽도록 힘들고 버거우면 때론 도망쳐라. 버티다가 부러진다.', source: '20가지 인생원칙 10' },
+            { id: 's19', category: '인생수칙', content: '불평, 불만 습관처럼 하지 마라. 있던 운도 달아난다.', source: '20가지 인생원칙 11' },
+            { id: 's20', category: '인생수칙', content: '영양가 있는 취미를 만들어라. 운동이든, 독서든, 쓸만한 놈으로.', source: '20가지 인생원칙 12' },
+            { id: 's21', category: '인생수칙', content: '세상에 "절대로" "무조건"은 없다. 유연한 태도로 살아라.', source: '20가지 인생원칙 13' },
+            { id: 's22', category: '인생수칙', content: '앞에서 못할 말 뒤에서도 하지 마라. 어디선가 너도 씹히기 싫으면', source: '20가지 인생원칙 14' },
+            { id: 's23', category: '인생수칙', content: '뭐든 배워라. 뭐든 배우면 쓸 데가 반드시 생긴다. 아는 게 힘이다.', source: '20가지 인생원칙 15' },
+            { id: 's24', category: '인생수칙', content: '몸을 청결히 해라. 별거 아닌 거 같아도 나를 챙기는 첫 번째이다.', source: '20가지 인생원칙 16' },
+            { id: 's25', category: '인생수칙', content: '한때의 선택은 그 시절의 최선이라는 것을 알아라. 자책하지 마라.', source: '20가지 인생원칙 17' },
+            { id: 's26', category: '인생수칙', content: '옆에 이상한 사람 두면 나도 이상해진다. 주변에 사람 신중히 둬라.', source: '20가지 인생원칙 18' },
+            { id: 's27', category: '인생수칙', content: '"괜찮다" "할 수 있다" 말하다 보면 진짜 그렇게 되는 경우가 왕왕 있다.', source: '20가지 인생원칙 19' },
+            { id: 's28', category: '인생수칙', content: '생각이 곧 나다. 긍정적으로 생각하면 삶도 긍정적으로 굴러간다.', source: '20가지 인생원칙 20' },
+
+            // 다짐
+            { id: 's29', category: '다짐', content: '오후 8시 이후에는 물 이외에는 먹지 않도록\n\n몸과 마음의 휴식과 리프레쉬를', source: '' },
+            { id: 's30', category: '다짐', content: '남 험담을 하지도 듣지도 말라\n\n활이 되어 다시 내게로 오고 족쇄가 되어 내 발목을 묶어 버린다', source: '' },
+            { id: 's31', category: '다짐', content: '침묵도 언어의 한 종류다. 말을 하는 것보다 침묵이 훨씬 좋은 선택일 수 있다.\n\n기본적으로 말을 줄이자. 하지 않을 말을 하지 말자', source: '' },
+            { id: 's32', category: '다짐', content: '취침을 하기위해 침대에 가면 휴대폰은 알람용으로만 사용하자.\n침대에 누워서는 휴대폰 불빛도 보지 말자.\n\n뇌에게 쉴 수 있는 시간을 주자.', source: '' },
+            { id: 's33', category: '다짐', content: '살면서 조심하자. 사소한 것에도 조심 또 조심하자\n\n그 사소하고 조그만한 것이 추후 크게 될 수도 있다.\n실수를 계속 맘에 두는 것도 좋지 않지만 반성을 하지 않는 건 더 큰 일을 만든다', source: '' },
+            { id: 's34', category: '다짐', content: '가족이 지적한 나의 잘못된 습관을 고치려고 노력하자.\n\n나이를 떠나 잘못된 것을 보고 그대로 두는 것만큼 세상 살아가는 데에 우둔한 것은 없다.\n\n개선, 좋은 방향으로 오늘도 한 걸음', source: '' },
+            { id: 's35', category: '다짐', content: '사람 참 조심하자. 아무리 내가 잘 해준다고 해도 뒤통수 친다.\n\n사람에 대한 기대, 약속 이것도 믿음이다. 조심하자.', source: '' },
+            { id: 's36', category: '다짐', content: '말을 계속 줄이자.\n\n말년이 아니라 현재를 위해 운동하고 경제적 풍요를 위해서 계속 노력하자.\n\n가끔 바다도 보러가자^^', source: '' },
+
+            // 불교
+            { id: 's37', category: '불교', content: '고통이 너를 붙잡고 있는 것이 아니다\n너가 고통을 붙잡고 있는 것이다', source: '불교' },
+            { id: 's38', category: '불교', content: '네 마음을 다스리지 못하면\n그 마음이 너를 휘두를 것이다', source: '불교' },
+            { id: 's39', category: '불교', content: '누구도 우리를 구원하지 못한다\n그 어떤 누구도 구원할 수 없고 하지도 못한다\n우린 우리 스스로의 길로 나아가야만 한다', source: '불교' },
+            { id: 's40', category: '불교', content: '헤어지기 마련이고\n변하기 마련이고\n없어지기 마련이다', source: '불교' },
+            { id: 's41', category: '불교', content: '인간을 사악한 길로 현혹시키는 것은 원수도 악마도 아니다\n바로 자신의 마음이다', source: '불교' },
+            { id: 's42', category: '불교', content: '어떤 행동에도 변하지 않고 닥쳐오는 운명이란 없다\n그러나 행동하지 않는 자에게 닥쳐오는 운명은 존재한다', source: '불교' },
+            { id: 's43', category: '불교', content: '너희는 저마다 자신을 등불로 삼고,\n자신을 의지할 곳으로 삼으라.\n또한 진실을 등불로 삼고,\n진리를 의지할 곳으로 삼으라\n다른 것을 의지할 곳으로 삼지 말라', source: '불교' },
+            { id: 's44', category: '불교', content: '오늘은 우리는 과거 생각에 대한 결과이다\n마음은 모든 것이다.\n우리는 우리의 생각대로 그런 사람이 된다.', source: '불교' },
+            { id: 's45', category: '불교', content: '사람은 사랑받기 위해 창조되었고\n사물은 사용되기 위해 창조되었다\n지금 세상이 혼돈에 빠진 것은\n사물이 사랑받고 사람이 사용되고 있기 때문이다', source: '달라이라마' },
+            { id: 's46', category: '불교', content: '조금 아는 바가 있다해서\n스스로 뽐내며 남을 깔보는 것은\n장님이 촛불을 들고 걷는 것과 같아\n남은 비추지만\n자신은 비추지 못한다', source: '법구경' },
+            { id: 's47', category: '불교', content: '악은 사람의 마음에서 나와\n결국 사람의 몸을 망친다\n마치 녹이 쇠에서 나와\n결국 쇠를 먹어치우는 것과 같이', source: '법구경' },
+            { id: 's48', category: '불교', content: '들판의 꽃들은 서로를 의식하고 피어 있는 게 아니다.\n그저 피어 있을 뿐이다\n그저 자신의 자리에 충실할 뿐이다\n\n당신의 가치는 다른 사람과의 관계 속에서 규정되는 것은 아니다\n스스로 만들어 가는 것이다', source: '법구경' },
+            { id: 's49', category: '불교', content: '그렇게 될 일은 결국 그렇게 된다\n있던 건 지나가고 없던 건 돌아온다\n\n연꽃이 물에 젖지 않는 것처럼\n마음은 청정하며 모든 것을 초월하여 있다', source: '화엄경' },
+            { id: 's50', category: '불교', content: '과거를 좇지 말고\n오지 않은 미래를 염려하지 말라\n과거는 이미 지나갔고\n미래는 아직 오지 않은 것\n\n오로지 현재 일어난 것들을 관찰하며\n어떤 것에도 흔들리지 말고\n현재를 추구하고 실천하라', source: '중아함경' },
+            { id: 's51', category: '불교', content: '유리하다고 교만하지 말고\n불리하다고 비굴하지 말라\n자기가 아는대로 진실만을 말하라\n\n벙어리처럼 침묵하고 임금처럼 말하며\n눈처럼 냉정하고 불처럼 뜨거워라\n\n태산같은 자부심을 갖고\n누운 풀처럼 자기를 낮추어라', source: '잡장경제' },
+            { id: 's52', category: '불교', content: '진실은 진실된 사람에게 투자해야만 한다\n\n대부분의 피해는 진실없는 사람에게\n진실을 쏟아부은 대가로 받는 벌이다', source: '법정' },
+            { id: 's53', category: '불교', content: '생각을 다 일으키면서도 그 생각에 사로잡히지 않는 것이다\n생각의 본성이 공함을 자각하기 때문이다\n생각의 본성이 공하다는 자각, 그것이 바로 무념이다', source: '법정' },
+            { id: 's54', category: '불교', content: '상대방에게 나를 마음대로 판단할 권리를 인정해 주라\n\n내 마음을 나도 통제 못하는데\n상대방의 마음을 무슨 수로 조종하겠는가?\n\n저마다 자기 식대로 판단하도록 그저 내버려 두라', source: '법정' },
+            { id: 's55', category: '불교', content: '"만남이 있는 곳에 얽힘이 있고, 얽힘이 있는 곳에 고통이 따른다.\n\n사람들이 뿜어내는 칭찬과 비난의 소리에 놀라지 않는 사자처럼,\n그물에 걸리지 않는 바람처럼, 물에 젖지 않는 진흙 속 연꽃처럼,\n오직 무소의 뿔처럼 혼자서 묵묵히 걸어가라."', source: '숫따니빠따' },
+
+            // 뇌과학
+            { id: 's56', category: '뇌과학', content: '감정은 편도체(Amygdala)가 만들어내는 전기적/화학적 신호일 뿐, "내 인격" 자체가 아니다.\n\n비가 온다고 해서 하늘이 무너지는 게 아니듯, 우울하다고 해서 내 인생이 망한 것은 아니다.\n\n"나는 지금 슬프다" 대신 "내 뇌가 지금 슬픔이라는 신호를 보내고 있구나"라고 3인칭으로 관찰하기', source: 'Smart Human 룰 1' },
+            { id: 's57', category: '뇌과학', content: '의지력(Willpower)은 전두엽의 한정된 자원을 사용한다.\n수면 부족이나 영양 불균형은 전두엽의 기능을 저하시킨다.\n\n기분이 안 좋으면 생각(Software)을 멈추고\n잠, 밥, 걷기(Hardware)부터 챙긴다.', source: 'Smart Human 룰 2' },
+            { id: 's58', category: '뇌과학', content: '위기 상황에서는 뇌의 혈류가 "생존 본능"을 담당하는 구피질로 쏠리고,\n"합리적 판단"을 하는 신피질은 일시적 기능 정지에 빠진다.\n\n고민할 시간을 주지 말고 기계적으로 따른다.\n"왜?"라고 묻지 말고 "그냥 해".', source: 'Smart Human 룰 3' },
+            { id: 's59', category: '뇌과학', content: '알코올과 격한 감정은 뇌의 "억제 기능(충동 조절)"을 담당하는 회로를 마비시킨다.\n\n이때 하는 다짐은 의지가 아니라 "도파민의 장난"이며,\n이때 하는 결정은 데이터가 아닌 "기분"에 기반한 도박이다.\n\n해 지고 나서는 중요한 결정을 하지 않는다.', source: 'Smart Human 룰 4' },
+            { id: 's60', category: '뇌과학', content: '복잡한 규칙은 스트레스 상황에서 작업 기억(Working Memory) 용량을 초과하여 실행되지 않는다.\n\n"매일 1시간 운동"보다는\n"일단 운동화 신고 문밖으로 나가기"가\n바보일 때도 성공할 수 있는 규칙이다.', source: 'Smart Human 룰 5' },
+            { id: 's61', category: '뇌과학', content: '우리 뇌는 가소성(Plasticity)이 있어 변하지만,\n동시에 관성(Homeostasis)이 있어 옛 패턴으로 돌아가려 한다.\n\n3개월(약 100일)은 새로운 신경 회로가 자리를 잡는지 확인하는 최소한의 주기다.\n\n3개월마다 내 알고리즘을 점검한다.', source: 'Smart Human 룰 6' },
+            { id: 's62', category: '뇌과학', content: 'Smart Human 6-line Rule\n\n1. 감정은 날씨, 해석은 나중.\n2. 몸이 먼저, 마음은 따라온다.\n3. 시스템 우선, 판단은 후순위.\n4. 감정 클 때는 아무것도 결정하지 않는다.\n5. 의지력 믿지 말고 시스템을 믿는다.\n6. 3개월마다 내 알고리즘을 점검한다.', source: 'Smart Human 6-line Rule' },
+        ];
+
+        // ── State ──
+        let allCards = [];
+        let filteredCards = [];
+        let currentIndex = 0;
+        let currentFilter = 'all';
+        let currentView = 'card';
+        let editMode = false;
+        let editId = null;
+        let deleteId = null;
+        let firebaseReady = false;
+        let currentUser = null;
+        let db = null;
+
+        // ── Firebase Init ──
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            firebase.auth().onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('authNote').textContent = '☁ 클라우드 동기화 중…';
+                    loadFromFirebase();
+                } else {
+                    firebase.auth().signInAnonymously().catch(() => { });
+                }
+            });
+            firebaseReady = true;
+        } catch (e) {
+            console.warn('Firebase not configured, using local storage');
+            loadLocal();
+        }
+
+        function loadFromFirebase() {
+            if (!currentUser || !db) return;
+            const ref = db.ref(`users/${currentUser.uid}/mindvault`);
+            ref.once('value', snap => {
+                const data = snap.val();
+                let userCards = data ? Object.values(data) : [];
+                // Merge seed + user cards (avoid duplicates by id)
+                const seedIds = new Set(SEED.map(c => c.id));
+                const merged = [...SEED, ...userCards.filter(c => !seedIds.has(c.id))];
+                allCards = merged;
+                document.getElementById('authNote').textContent = '☁ 동기화됨';
+                applyFilter();
+            });
+        }
+
+        function saveToFirebase(card) {
+            if (!currentUser || !db) { saveLocal(card); return; }
+            db.ref(`users/${currentUser.uid}/mindvault/${card.id}`).set(card);
+        }
+
+        function deleteFromFirebase(id) {
+            if (!currentUser || !db) { deleteLocal(id); return; }
+            db.ref(`users/${currentUser.uid}/mindvault/${id}`).remove();
+        }
+
+        // Local storage fallback
+        function loadLocal() {
+            const stored = localStorage.getItem('mindvault');
+            const userCards = stored ? JSON.parse(stored) : [];
+            const seedIds = new Set(SEED.map(c => c.id));
+            allCards = [...SEED, ...userCards.filter(c => !seedIds.has(c.id))];
+            applyFilter();
+        }
+
+        function saveLocal(card) {
+            const stored = localStorage.getItem('mindvault');
+            let cards = stored ? JSON.parse(stored) : [];
+            const idx = cards.findIndex(c => c.id === card.id);
+            if (idx >= 0) cards[idx] = card; else cards.push(card);
+            localStorage.setItem('mindvault', JSON.stringify(cards));
+        }
+
+        function deleteLocal(id) {
+            const stored = localStorage.getItem('mindvault');
+            let cards = stored ? JSON.parse(stored) : [];
+            cards = cards.filter(c => c.id !== id);
+            localStorage.setItem('mindvault', JSON.stringify(cards));
+        }
+
+        // ── Filter & Render ──
+        function setFilter(cat, btn) {
+            currentFilter = cat;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFilter();
+        }
+
+        function applyFilter() {
+            if (currentFilter === 'all') {
+                filteredCards = [...allCards];
+            } else {
+                filteredCards = allCards.filter(c => c.category === currentFilter);
+            }
+            // Random start
+            currentIndex = Math.floor(Math.random() * filteredCards.length);
+            renderCard();
+            renderList();
+        }
+
+        function renderCard() {
+            const wrapper = document.getElementById('cardWrapper');
+            if (!filteredCards.length) {
+                wrapper.innerHTML = '<div class="loading">보관된 마음이 없습니다</div>';
+                document.getElementById('navCounter').textContent = '— / —';
+                return;
+            }
+
+            const card = filteredCards[currentIndex];
+            wrapper.innerHTML = buildCard(card);
+            document.getElementById('navCounter').textContent = `${currentIndex + 1} / ${filteredCards.length}`;
+            renderDots();
+        }
+
+        function buildCard(card) {
+            const catClass = `cat-${card.category}`;
+            const sourceHtml = card.source ? `<div class="card-source">${escHtml(card.source)}</div>` : '';
+            return `
+    <div class="card card-animate" id="currentCard">
+      <div class="card-corner tl"></div>
+      <div class="card-corner tr"></div>
+      <div class="card-corner bl"></div>
+      <div class="card-corner br"></div>
+      <div class="card-actions">
+        <button class="card-action-btn" onclick="openEdit('${card.id}')" title="수정">✎</button>
+        <button class="card-action-btn delete" onclick="askDelete('${card.id}')" title="삭제">✕</button>
+      </div>
+      <div class="card-category ${catClass}">
+        <span class="category-dot"></span>${card.category}
+      </div>
+      <div class="card-content">${escHtml(card.content)}</div>
+      ${sourceHtml}
+    </div>
+  `;
+        }
+
+        function escHtml(s) {
+            return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function renderDots() {
+            const container = document.getElementById('progressDots');
+            const total = Math.min(filteredCards.length, 9);
+            let html = '';
+            for (let i = 0; i < total; i++) {
+                const isActive = filteredCards.length <= 9
+                    ? i === currentIndex
+                    : i === Math.round((currentIndex / filteredCards.length) * (total - 1));
+                html += `<div class="dot${isActive ? ' active' : ''}"></div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function renderList() {
+            const container = document.getElementById('listItems');
+            if (!filteredCards.length) {
+                container.innerHTML = '<div class="loading">보관된 마음이 없습니다</div>';
+                return;
+            }
+            container.innerHTML = filteredCards.map((card, i) => `
+    <div class="list-item" onclick="goToCard(${i})">
+      <span class="list-item-category bg-${card.category}">${card.category}</span>
+      <div class="list-item-text">${escHtml(card.content)}</div>
+      <div class="list-item-actions" onclick="event.stopPropagation()">
+        <button class="card-action-btn" onclick="openEdit('${card.id}')" title="수정">✎</button>
+        <button class="card-action-btn delete" onclick="askDelete('${card.id}')" title="삭제">✕</button>
+      </div>
+    </div>
+  `).join('');
+        }
+
+        function goToCard(i) {
+            currentIndex = i;
+            setView('card');
+            renderCard();
+        }
+
+        // ── Navigation ──
+        function navigate(dir) {
+            if (!filteredCards.length) return;
+            currentIndex = (currentIndex + dir + filteredCards.length) % filteredCards.length;
+            renderCard();
+        }
+
+        function shuffle() {
+            if (!filteredCards.length) return;
+            let newIdx;
+            do { newIdx = Math.floor(Math.random() * filteredCards.length); }
+            while (newIdx === currentIndex && filteredCards.length > 1);
+            currentIndex = newIdx;
+            renderCard();
+        }
+
+        // ── View Toggle ──
+        function setView(v) {
+            currentView = v;
+            const main = document.getElementById('mainView');
+            const list = document.getElementById('listView');
+            document.getElementById('viewCard').classList.toggle('active', v === 'card');
+            document.getElementById('viewList').classList.toggle('active', v === 'list');
+            if (v === 'card') {
+                main.style.display = 'flex';
+                list.style.display = 'none';
+                renderCard();
+            } else {
+                main.style.display = 'none';
+                list.style.display = 'block';
+                renderList();
+            }
+        }
+
+        // ── Add / Edit ──
+        function openAdd() {
+            editMode = false;
+            editId = null;
+            document.getElementById('panelTitle').textContent = '새 마음 담기';
+            document.getElementById('formContent').value = '';
+            document.getElementById('formSource').value = '';
+            document.getElementById('formCategory').value = '인생수칙';
+            document.getElementById('addOverlay').classList.add('active');
+        }
+
+        function openEdit(id) {
+            const card = allCards.find(c => c.id === id);
+            if (!card) return;
+            editMode = true;
+            editId = id;
+            document.getElementById('panelTitle').textContent = '마음 고치기';
+            document.getElementById('formContent').value = card.content;
+            document.getElementById('formSource').value = card.source || '';
+            document.getElementById('formCategory').value = card.category;
+            document.getElementById('addOverlay').classList.add('active');
+        }
+
+        function closePanel() {
+            document.getElementById('addOverlay').classList.remove('active');
+        }
+
+        function closeOverlayOnBg(e) {
+            if (e.target === document.getElementById('addOverlay')) closePanel();
+        }
+
+        function saveCard() {
+            const content = document.getElementById('formContent').value.trim();
+            const source = document.getElementById('formSource').value.trim();
+            const category = document.getElementById('formCategory').value;
+            if (!content) { document.getElementById('formContent').focus(); return; }
+
+            if (editMode && editId) {
+                const idx = allCards.findIndex(c => c.id === editId);
+                if (idx >= 0) {
+                    allCards[idx] = { ...allCards[idx], content, source, category };
+                    saveToFirebase(allCards[idx]);
+                    saveLocal(allCards[idx]);
+                }
+            } else {
+                const newCard = {
+                    id: 'u' + Date.now(),
+                    category,
+                    content,
+                    source,
+                };
+                allCards.push(newCard);
+                saveToFirebase(newCard);
+                saveLocal(newCard);
+            }
+
+            closePanel();
+            applyFilterKeepIndex();
+        }
+
+        function applyFilterKeepIndex() {
+            const prevId = filteredCards[currentIndex]?.id;
+            if (currentFilter === 'all') {
+                filteredCards = [...allCards];
+            } else {
+                filteredCards = allCards.filter(c => c.category === currentFilter);
+            }
+            const newIdx = filteredCards.findIndex(c => c.id === prevId);
+            currentIndex = newIdx >= 0 ? newIdx : 0;
+            renderCard();
+            renderList();
+        }
+
+        // ── Delete ──
+        function askDelete(id) {
+            deleteId = id;
+            document.getElementById('confirmOverlay').classList.add('active');
+        }
+
+        function closeConfirm() {
+            deleteId = null;
+            document.getElementById('confirmOverlay').classList.remove('active');
+        }
+
+        function closeConfirmOnBg(e) {
+            if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
+        }
+
+        function confirmDelete() {
+            if (!deleteId) return;
+            allCards = allCards.filter(c => c.id !== deleteId);
+            deleteFromFirebase(deleteId);
+            deleteLocal(deleteId);
+            deleteId = null;
+            document.getElementById('confirmOverlay').classList.remove('active');
+            applyFilterKeepIndex();
+        }
+
+        // ── Keyboard ──
+        document.addEventListener('keydown', e => {
+            if (document.getElementById('addOverlay').classList.contains('active')) return;
+            if (e.key === 'ArrowLeft') navigate(-1);
+            if (e.key === 'ArrowRight') navigate(1);
+            if (e.key === 'r' || e.key === 'R') shuffle();
+        });
+
+        // ── Init ──
+        if (!firebaseReady) loadLocal();
+    </script>
+</body>
+
+</html>
