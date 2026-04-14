@@ -651,9 +651,13 @@
             if (newWord === null) return;
             const newMeaning = prompt("✏️ 수정할 뜻이나 메모를 입력하세요:", targetVoca.meaning);
             if (newMeaning === null) return;
+            const newExample = prompt("✏️ 수정할 예문을 입력하세요 (없으면 비워두세요):", targetVoca.example || "");
+            if (newExample === null) return;
+            
             db.ref(`users/${currentUser.uid}/voca/${key}`).update({
                 word: newWord.trim(),
-                meaning: newMeaning.trim()
+                meaning: newMeaning.trim(),
+                example: newExample.trim()
             }).then(() => {
                 console.log("단어 수정 완료!");
             }).catch(error => {
