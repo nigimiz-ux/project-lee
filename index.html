@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 
 <head>
@@ -239,14 +239,21 @@
             }
         }
 
-        // 1. 로그인 함수
+        // 1. 로그인 함수 (캐시 착시현상 뚫기 및 무조건 Redirect)
         function toggleAuth() {
             if (currentUser) {
-                auth.signOut();
+                auth.signOut().then(function() {
+                    window.location.reload(); // 로그아웃 시 깔끔하게 상태 초기화
+                });
             } else {
-                var googleProvider = new firebase.auth.GoogleAuthProvider();
-                auth.signInWithRedirect(googleProvider).catch(function(error) {
+                // 보안 에러 방지 및 무한 리다이렉트 캐시 문제를 뚫기 위해 강제 계정 선택(prompt) 추가
+                provider.setCustomParameters({ prompt: 'select_account' });
+                
+                auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function() {
+                    return auth.signInWithRedirect(provider);
+                }).catch(function(error) {
                     console.error("로그인 호출 에러:", error);
+                    alert("로그인 중 에러가 발생했습니다: " + error.message);
                 });
             }
         }
@@ -263,7 +270,7 @@
             renderLoginPrompt();
         });
 
-        // 3. 실시간 유저 상태 감지
+        // 3. 실시간 유저 상태 감지 및 DOM 업데이트 (우측 상단, 좌측 하단 확실히 변경)
         auth.onAuthStateChanged(function(user) {
             forceClearAll();
             var authBtn = document.getElementById('authBtn');
@@ -271,8 +278,18 @@
 
             if (user) {
                 currentUser = user;
-                if (authBtn) authBtn.innerHTML = '<span class="text-rose-500"><i class="fa-solid fa-power-off"></i> 로그아웃</span>';
-                if (userInfoArea) userInfoArea.innerHTML = '<img src="' + (user.photoURL || 'https://ui-avatars.com/api/?name=Lee') + '" class="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white"><div><p class="text-sm font-bold text-white leading-tight">' + (user.displayName || 'Executive LEE') + '</p><p class="text-xs text-slate-500">Executive Admin</p></div>';
+                var safeName = user.displayName || 'User';
+                var safePhoto = user.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(safeName) + '&background=random');
+
+                // [UI 업데이트 필수] 우측 상단 '로그인' 버튼을 유저 이름과 프로필 사진, 로그아웃 아이콘으로 확실하게 변경
+                if (authBtn) {
+                    authBtn.innerHTML = '<img src="' + safePhoto + '" class="w-6 h-6 rounded-full border border-slate-300"> <span class="text-slate-700 max-w-[100px] truncate">' + safeName + '</span> <i class="fa-solid fa-power-off text-rose-500 ml-1" title="로그아웃"></i>';
+                }
+                
+                // 좌측 하단 '로그인 필요' 텍스트를 유저 프로필로 확실하게 변경
+                if (userInfoArea) {
+                    userInfoArea.innerHTML = '<img src="' + safePhoto + '" class="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white shadow-sm"><div class="overflow-hidden"><p class="text-sm font-bold text-white leading-tight truncate">' + safeName + '</p><p class="text-xs text-slate-500">Executive Admin</p></div>';
+                }
 
                 if (document.getElementById('kanbanContainer')) initKanban();
                 if (document.getElementById('vaultTableBody')) initVault();
@@ -282,8 +299,13 @@
                 if (contentArea && contentArea.innerHTML.trim() === '') navigateTo('home');
             } else {
                 currentUser = null;
-                if (authBtn) authBtn.innerHTML = '<img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> 로그인';
-                if (userInfoArea) userInfoArea.innerHTML = '<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xl">?</div><div><p class="text-sm font-bold text-slate-400 leading-tight">로그인 필요</p></div>';
+                // 로그아웃 상태일 때 초기화
+                if (authBtn) {
+                    authBtn.innerHTML = '<img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> 로그인';
+                }
+                if (userInfoArea) {
+                    userInfoArea.innerHTML = '<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xl shadow-inner">?</div><div><p class="text-sm font-bold text-slate-400 leading-tight">로그인 필요</p></div>';
+                }
                 renderLoginPrompt();
             }
         });
