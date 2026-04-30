@@ -235,7 +235,7 @@
                             <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50">
                                 <p class="text-rose-500 font-bold mb-4 text-lg">보안 인증이 만료되었습니다. (시간 초과)</p>
                                 <button onclick="toggleAuth()" class="bg-slate-800 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
-                                    <i class="fa-solid fa-power-off"></i> 다시 로그인
+                                    <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> [구글 드라이브 연동하기]
                                 </button>
                             </div>
                         `;
@@ -277,7 +277,7 @@
                     <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50">
                         <p class="text-rose-500 font-bold mb-4 text-lg">보안 인증 로그인에 실패했습니다.</p>
                         <button onclick="toggleAuth()" class="bg-slate-800 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
-                            <i class="fa-solid fa-power-off"></i> 다시 로그인
+                            <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> [구글 드라이브 연동하기]
                         </button>
                     </div>
                 `;
@@ -319,7 +319,7 @@
                             <i class="fa-solid fa-triangle-exclamation text-4xl text-rose-400 mb-4"></i>
                             <p class="text-rose-500 font-bold mb-6 text-xl">로그인 전 상태입니다. 권한을 확인해주세요.</p>
                             <button onclick="toggleAuth()" class="bg-slate-800 text-white px-8 py-4 rounded-xl text-base font-bold shadow-xl hover:bg-slate-700 transition flex items-center gap-3">
-                                <i class="fa-brands fa-google text-rose-400"></i> Google 계정으로 로그인
+                                <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-5 h-5" alt="G"> [구글 드라이브 연동하기]
                             </button>
                         </div>
                     `;
@@ -330,8 +330,8 @@
                     dgContent.innerHTML = `
                         <div class="flex flex-col items-center justify-center w-full h-full" style="padding: 40px; text-align: center;">
                             <p style="color: #ef4444; font-weight: bold; margin-bottom: 20px;">보안 인증이 필요합니다.</p>
-                            <button onclick="toggleAuth()" style="background: #1e293b; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                                [다시 로그인]
+                            <button onclick="toggleAuth()" style="background: #1e293b; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                                <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" style="width:16px;height:16px;" alt="G"> [구글 드라이브 연동하기]
                             </button>
                         </div>
                     `;

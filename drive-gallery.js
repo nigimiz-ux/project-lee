@@ -91,6 +91,7 @@ async function initDriveApis() {
   driveState.tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: DRIVE_CONFIG.CLIENT_ID,
     scope: DRIVE_CONFIG.SCOPES,
+    ux_mode: 'redirect',
     callback: () => {},
   });
 
@@ -1795,3 +1796,43 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // 외부 노출 (기존 앱 메뉴 클릭 시 호출)
 // ============================================================
 window.DriveGallery = { load: loadDriveGallery, render: renderDriveGallery };
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const splash = document.getElementById('splashScreen');
+    const rings = document.getElementById('loadingRings');
+    const dgLoading = document.querySelector('.dg-loading');
+    
+    let isStuck = false;
+    if (splash && splash.style.display !== 'none') isStuck = true;
+    if (rings && rings.style.display !== 'none') isStuck = true;
+    if (dgLoading && dgLoading.style.display !== 'none') isStuck = true;
+    
+    if (splash) splash.style.display = 'none';
+    if (rings) rings.style.display = 'none';
+    if (dgLoading) dgLoading.style.display = 'none';
+    
+    const mainApp = document.getElementById('mainApp');
+    if (mainApp) {
+      mainApp.classList.remove('hidden');
+      mainApp.style.opacity = '1';
+      mainApp.style.display = 'flex';
+    }
+    
+    const dgContent = document.getElementById('dg-content');
+    if (dgContent && isStuck) {
+      dgContent.innerHTML = `
+        <div class="dg-signin" style="text-align: center; padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%;">
+          <p style="color: #ef4444; font-weight: bold; margin-bottom: 16px;">인증 시간 초과: 구글 드라이브 연동이 필요합니다.</p>
+          <button class="dg-signin-btn" onclick="signInDrive()" style="background: #1e293b; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px;">
+            <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" style="width:16px;height:16px;" alt="G">
+            [구글 드라이브 연동하기]
+          </button>
+        </div>
+      `;
+      dgContent.style.display = 'block';
+    }
+    
+    console.log("🚨 3초 경과: 로딩 스피너 및 가림막 강제 철거 완료");
+  }, 3000);
+});
