@@ -7,7 +7,8 @@ const DRIVE_CONFIG = {
   CLIENT_ID: '299405203142-8cdiq5unru0ocif4qti948hsmm2ge83h.apps.googleusercontent.com',
   API_KEY: 'AIzaSyBLbhkWaq44NBPTHQKZyCwaEBOWYjNlcWU',
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-  SCOPES: 'https://www.googleapis.com/auth/drive.file'
+  SCOPES: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file'
+  // ✅ FIX 4: drive.file만으로는 기존 파일 조회 불가 → drive.readonly 추가
 };
 
 // 상태
@@ -43,7 +44,6 @@ function renderError(e) {
 // ===============================
 async function initDrive() {
   try {
-    // 렌더링 전 로딩 표시 (빈 화면 방지용)
     const contentArea = document.getElementById('contentArea');
     if (contentArea && contentArea.innerHTML.trim() === '') {
       contentArea.innerHTML = '<div class="flex items-center justify-center w-full h-full"><i class="fa-solid fa-spinner fa-spin text-4xl text-slate-300"></i></div>';
@@ -64,8 +64,8 @@ async function initDrive() {
       scope: DRIVE_CONFIG.SCOPES,
       callback: (resp) => {
         if (resp.error) {
-            renderError(resp.error);
-            return;
+          renderError(resp.error);
+          return;
         }
         gapi.client.setToken({ access_token: resp.access_token });
         driveState.tokenExpiresAt = Date.now() + resp.expires_in * 1000;
@@ -82,7 +82,7 @@ async function initDrive() {
 // ===============================
 // AUTH
 // ===============================
-window.signInDrive = function() {
+window.signInDrive = function () {
   driveState.tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
@@ -115,15 +115,10 @@ async function loadFiles(folderId = driveState.currentFolderId) {
       return;
     }
 
-    // 로딩 표시
-    const contentArea = document.getElementById('contentArea');
-    if (contentArea && contentArea.innerHTML.indexOf('fa-spinner') === -1 && contentArea.innerHTML.indexOf('Google Drive 권한 필요') === -1) {
-        // 이미 렌더링된 상태가 아니라면 스피너를 보여줌 (너무 깜빡이는 것 방지)
-    }
-
     driveState.currentFolderId = folderId;
 
-    const q = \`'\${folderId}' in parents and trashed = false\`;
+    // ✅ FIX 1: 백틱 내부 이스케이프 제거 (파일이 .js로 저장될 때 \` 불필요)
+    const q = `'${folderId}' in parents and trashed = false`;
 
     const res = await gapi.client.drive.files.list({
       pageSize: 50,
@@ -147,13 +142,14 @@ function renderFiles(files) {
   const list = files.map(f => {
     const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
 
+    // ✅ FIX 2: < div, < img 등 태그 내 불필요한 공백 제거
     const thumb = isFolder
       ? `<div class="w-16 h-16 flex items-center justify-center bg-amber-100 rounded-2xl mb-3 shadow-inner group-hover:bg-amber-200 transition-colors"><i class="fa-solid fa-folder text-4xl text-amber-500"></i></div>`
       : `<img src="${f.thumbnailLink || f.iconLink || 'https://via.placeholder.com/80?text=No+Thumb'}" class="w-16 h-16 object-cover rounded-2xl mb-3 shadow-sm group-hover:shadow-md transition-shadow bg-slate-100">`;
 
     const clickAction = isFolder
       ? `onclick="enterFolder('${f.id}','${f.name.replace(/'/g, "\\'")}')"`
-      : `onclick="openDriveFile('${f.webViewLink}')"`
+      : `onclick="openDriveFile('${f.webViewLink}')"`;
 
     return `
       <div class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-indigo-200 transition-all duration-300 cursor-pointer w-32 group hover:-translate-y-1" ${clickAction}>
@@ -216,17 +212,17 @@ function renderBreadcrumb() {
 // ===============================
 // NAVIGATION
 // ===============================
-window.enterFolder = function(id, name) {
+window.enterFolder = function (id, name) {
   driveState.folderStack.push({ id, name });
   loadFiles(id);
 }
 
-window.goRoot = function() {
+window.goRoot = function () {
   driveState.folderStack = [];
   loadFiles('root');
 }
 
-window.goToIndex = function(index) {
+window.goToIndex = function (index) {
   driveState.folderStack = driveState.folderStack.slice(0, index + 1);
   const folder = driveState.folderStack[index];
   loadFiles(folder.id);
@@ -235,7 +231,7 @@ window.goToIndex = function(index) {
 // ===============================
 // FILE ACTION
 // ===============================
-window.openDriveFile = function(url) {
+window.openDriveFile = function (url) {
   if (url && url !== 'undefined') {
     window.open(url, '_blank');
   }
@@ -244,39 +240,38 @@ window.openDriveFile = function(url) {
 // ===============================
 // UPLOAD & FOLDER WRAPPERS
 // ===============================
-window.handleUploadWrapper = async function(input) {
-    if (input.files && input.files.length > 0) {
-        const file = input.files[0];
-        
-        // 버튼 텍스트 변경 (간단한 UX)
-        const label = document.getElementById('uploadLabelBtn');
-        const originalHtml = label.innerHTML;
-        label.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 업로드 중...';
-        label.style.pointerEvents = 'none';
+window.handleUploadWrapper = async function (input) {
+  if (input.files && input.files.length > 0) {
+    const file = input.files[0];
 
-        try {
-            await uploadFile(file);
-        } catch(e) {
-            alert('업로드 실패: ' + e.message);
-            console.error(e);
-        } finally {
-            input.value = ''; // 초기화
-            label.innerHTML = originalHtml;
-            label.style.pointerEvents = 'auto';
-        }
+    const label = document.getElementById('uploadLabelBtn');
+    const originalHtml = label.innerHTML;
+    label.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 업로드 중...';
+    label.style.pointerEvents = 'none';
+
+    try {
+      await uploadFile(file);
+    } catch (e) {
+      alert('업로드 실패: ' + e.message);
+      console.error(e);
+    } finally {
+      input.value = '';
+      label.innerHTML = originalHtml;
+      label.style.pointerEvents = 'auto';
     }
+  }
 }
 
-window.promptCreateFolder = async function() {
-    const name = prompt("새 폴더 이름을 입력하세요:", "새 폴더");
-    if (name && name.trim()) {
-        try {
-            await createFolder(name.trim());
-        } catch (e) {
-            alert('폴더 생성 실패: ' + e.message);
-            console.error(e);
-        }
+window.promptCreateFolder = async function () {
+  const name = prompt("새 폴더 이름을 입력하세요:", "새 폴더");
+  if (name && name.trim()) {
+    try {
+      await createFolder(name.trim());
+    } catch (e) {
+      alert('폴더 생성 실패: ' + e.message);
+      console.error(e);
     }
+  }
 };
 
 // ===============================
@@ -329,11 +324,12 @@ async function createFolder(name) {
 // ===============================
 function loadScript(src) {
   return new Promise((res, rej) => {
-    if (document.querySelector(\`script[src="\${src}"]\`)) return res();
+    // ✅ FIX 3: querySelector 내 백틱 이스케이프 제거
+    if (document.querySelector(`script[src="${src}"]`)) return res();
     const s = document.createElement('script');
     s.src = src;
     s.onload = res;
-    s.onerror = () => rej(new Error(\`Failed to load script: \${src}\`));
+    s.onerror = () => rej(new Error(`Failed to load script: ${src}`));
     document.head.appendChild(s);
   });
 }
