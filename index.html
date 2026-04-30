@@ -613,7 +613,7 @@
             renderVocaGrid(); if (isPlayingAll) togglePlayAll();
         }
 
-        function initVoca() { if (!currentUser) { document.getElementById('vocaGrid').innerHTML = '<p class="text-rose-500 font-bold col-span-full text-center mt-10">먼저 로그인해 주세요!</p>'; return; } db.ref(`users/${currentUser.uid}/voca`).on('value', (snapshot) => { vocaData = snapshot.val() || {}; renderVocaGrid(); }); }
+        function initVoca() { if (!currentUser) { document.getElementById('vocaGrid').innerHTML = '<p class="text-rose-500 font-bold col-span-full text-center mt-10">먼저 로그인해 주세요!</p>'; return; } db.ref(`users/${currentUser.uid}/voca`).on('value', (snapshot) => { vocaData = snapshot.val() || {}; renderVocaGrid(); }, (error) => { if (error && error.code === 'PERMISSION_DENIED') { document.getElementById('vocaGrid').innerHTML = '<div class="col-span-full text-center py-10"><p class="text-rose-500 font-bold mb-4">보안 인증이 만료되었습니다. 다시 로그인해 주세요.</p><button onclick="toggleAuth()" class="bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-slate-700 transition inline-flex items-center justify-center gap-2">다시 로그인</button></div>'; } }); }
         function renderVocaGrid() {
             const grid = document.getElementById('vocaGrid'); if (!grid) return; grid.innerHTML = '';
             const keys = Object.keys(vocaData).reverse().filter(k => { const isArchived = vocaData[k].isArchived || false; return currentVocaTab === 'learning' ? !isArchived : isArchived; });
@@ -635,7 +635,7 @@
                 grid.innerHTML += cardHTML;
             });
         }
-        function toggleArchive(key, makeArchive) { db.ref(`users/${currentUser.uid}/voca/${key}`).update({ isArchived: makeArchive }); }
+        function toggleArchive(key, makeArchive) { db.ref(`users/${currentUser.uid}/voca/${key}`).update({ isArchived: makeArchive }).catch(err => { if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.'); }); }
         function togglePlayAll() {
             if (!window.speechSynthesis) return alert("이 브라우저에서는 음성 듣기를 지원하지 않습니다.");
             const btn = document.getElementById('playAllBtn');
@@ -656,14 +656,14 @@
             if (!currentUser) return alert("로그인 필요"); const dateStr = new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
             if (isBulkMode) {
                 const text = document.getElementById('vocaBulkInput').value.trim(); if (!text) return; const lines = text.split('\n'); let count = 0;
-                lines.forEach(line => { let separator = '\t'; let parts = line.split('\t'); if (parts.length < 2) { separator = ','; parts = line.split(','); } if (parts.length >= 2) { const word = parts[0].trim(); const meaning = parts[1].trim(); const example = parts.slice(2).join(separator).replace(/^"|"$/g, '').trim(); if (word && meaning) { db.ref(`users/${currentUser.uid}/voca`).push({ word, meaning, example, date: dateStr, isArchived: false }); count++; } } });
+                lines.forEach(line => { let separator = '\t'; let parts = line.split('\t'); if (parts.length < 2) { separator = ','; parts = line.split(','); } if (parts.length >= 2) { const word = parts[0].trim(); const meaning = parts[1].trim(); const example = parts.slice(2).join(separator).replace(/^"|"$/g, '').trim(); if (word && meaning) { db.ref(`users/${currentUser.uid}/voca`).push({ word, meaning, example, date: dateStr, isArchived: false }).catch(err => { if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.'); }); count++; } } });
                 alert(`${count}개의 단어가 성공적으로 일괄 등록되었습니다!`); document.getElementById('vocaBulkInput').value = ''; toggleVocaMode();
             } else {
                 const word = document.getElementById('vocaWord').value.trim(); const meaning = document.getElementById('vocaMeaning').value.trim(); const example = document.getElementById('vocaExample').value.trim();
-                if (!word || !meaning) return alert("단어와 뜻은 필수입니다!"); db.ref(`users/${currentUser.uid}/voca`).push({ word, meaning, example, date: dateStr, isArchived: false }).then(() => { document.getElementById('vocaWord').value = ''; document.getElementById('vocaMeaning').value = ''; document.getElementById('vocaExample').value = ''; });
+                if (!word || !meaning) return alert("단어와 뜻은 필수입니다!"); db.ref(`users/${currentUser.uid}/voca`).push({ word, meaning, example, date: dateStr, isArchived: false }).then(() => { document.getElementById('vocaWord').value = ''; document.getElementById('vocaMeaning').value = ''; document.getElementById('vocaExample').value = ''; }).catch(err => { if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.'); });
             }
         }
-        function deleteVoca(key) { if (confirm("이 카드를 영구 삭제하시겠습니까?")) db.ref(`users/${currentUser.uid}/voca/${key}`).remove(); }
+        function deleteVoca(key) { if (confirm("이 카드를 영구 삭제하시겠습니까?")) db.ref(`users/${currentUser.uid}/voca/${key}`).remove().catch(err => { if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.'); }); }
         function editVoca(key) {
             const targetVoca = vocaData[key];
             if (!targetVoca) return;
@@ -682,7 +682,11 @@
                 console.log("단어 수정 완료!");
             }).catch(error => {
                 console.error("수정 실패:", error);
-                alert("수정에 실패했습니다.");
+                if(error && error.code === 'PERMISSION_DENIED') {
+                    alert("보안 인증이 만료되었습니다. 다시 로그인해 주세요.");
+                } else {
+                    alert("수정에 실패했습니다.");
+                }
             });
         }
 

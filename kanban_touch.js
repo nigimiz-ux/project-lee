@@ -94,6 +94,22 @@ function initKanban() {
     _initSortable(todoCol, 'todo');
     _initSortable(doingCol, 'doing');
     _initSortable(doneCol, 'done');
+  }, (error) => {
+    if (error.code === 'PERMISSION_DENIED') {
+      const todoCol = document.getElementById('col-todo');
+      if (todoCol) {
+        todoCol.innerHTML = `
+          <div class="p-4 text-center mt-5">
+            <p class="text-xs text-rose-500 font-bold mb-3">보안 인증이 만료되었습니다. 다시 로그인해 주세요.</p>
+            <button onclick="toggleAuth()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-700 transition">다시 로그인</button>
+          </div>
+        `;
+        const doingCol = document.getElementById('col-doing');
+        const doneCol = document.getElementById('col-done');
+        if(doingCol) doingCol.innerHTML = '';
+        if(doneCol) doneCol.innerHTML = '';
+      }
+    }
   });
 }
 
@@ -139,7 +155,9 @@ function moveTaskVertical(taskKey, currentStatus, direction) {
   });
 
   if (Object.keys(updates).length > 0) {
-    db.ref().update(updates);
+    db.ref().update(updates).catch(err => {
+      if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.');
+    });
   }
 }
 
@@ -150,7 +168,9 @@ function moveTask(key, currentStatus, direction) {
   let newIndex = direction === 'right' ? currentIndex + 1 : currentIndex - 1;
 
   if (newIndex >= 0 && newIndex < statusFlow.length && currentUser) {
-    db.ref(`users/${currentUser.uid}/tasks/${key}`).update({ status: statusFlow[newIndex] });
+    db.ref(`users/${currentUser.uid}/tasks/${key}`).update({ status: statusFlow[newIndex] }).catch(err => {
+      if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.');
+    });
   }
 }
 
@@ -188,7 +208,9 @@ function _initSortable(colEl, status) {
           }
         });
         
-        db.ref().update(updates);
+        db.ref().update(updates).catch(err => {
+          if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.');
+        });
       }
     }
   });
@@ -228,6 +250,13 @@ function initVault() {
         `<td class="p-4 text-slate-300 text-xs">${task.partner || '-'}</td>`;
       tbody.appendChild(tr);
     });
+  }).catch((error) => {
+    if (error && error.code === 'PERMISSION_DENIED') {
+      const tbody = document.getElementById('vaultTableBody');
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center"><p class="text-rose-500 font-bold mb-3">보안 인증이 만료되었습니다. 다시 로그인해 주세요.</p><button onclick="toggleAuth()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition inline-flex items-center justify-center gap-2">다시 로그인</button></td></tr>';
+      }
+    }
   });
 }
 
@@ -282,7 +311,9 @@ function saveTaskDetails() {
     partner: document.getElementById('modalPartner').value,
     equipment: document.getElementById('modalEquipment').value,
     notes: document.getElementById('modalNotes').value
-  }).then(() => closeModal());
+  }).then(() => closeModal()).catch(err => {
+    if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.');
+  });
 }
 
 function addNewTask() {
@@ -293,10 +324,14 @@ function addNewTask() {
     text: taskText,
     status: 'todo',
     date: new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+  }).catch(err => {
+    if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.');
   });
 }
 
 function deleteTask(taskKey) {
   if (confirm("삭제하시겠습니까?"))
-    db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).remove();
+    db.ref(`users/${currentUser.uid}/tasks/${taskKey}`).remove().catch(err => {
+      if(err && err.code === 'PERMISSION_DENIED') alert('보안 인증이 만료되었습니다. 다시 로그인해 주세요.');
+    });
 }
