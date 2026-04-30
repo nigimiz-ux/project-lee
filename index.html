@@ -209,12 +209,46 @@
 
         let currentUser = null; let draggedTaskKey = null; let boardData = {}; let currentEditKey = null;
 
-        document.addEventListener("DOMContentLoaded", () => { setTimeout(() => { document.getElementById('loadingRings').style.opacity = '0'; document.getElementById('terminalText').style.opacity = '0'; document.getElementById('finalLogo').style.opacity = '1'; document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)'; setTimeout(() => { document.getElementById('splashScreen').style.opacity = '0'; document.getElementById('mainApp').classList.remove('hidden'); setTimeout(() => { document.getElementById('mainApp').style.opacity = '1'; document.getElementById('splashScreen').style.display = 'none'; navigateTo('home'); }, 50); }, 400); }, 300); });
+        document.addEventListener("DOMContentLoaded", () => {
+            // [최후의 안전장치] 3초(3000ms) 후 스피너 강제 철거 및 로그인 유도
+            setTimeout(() => {
+                const splash = document.getElementById('splashScreen');
+                const rings = document.getElementById('loadingRings');
+                if (splash && splash.style.display !== 'none') {
+                    splash.style.display = 'none';
+                    if (rings) rings.style.display = 'none';
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    document.getElementById('mainApp').style.opacity = '1';
+                    
+                    const contentArea = document.getElementById('contentArea');
+                    if (contentArea) {
+                        contentArea.innerHTML = `
+                            <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50">
+                                <p class="text-rose-500 font-bold mb-4 text-lg">보안 인증이 만료되었습니다.</p>
+                                <button onclick="toggleAuth()" class="bg-slate-800 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
+                                    <i class="fa-solid fa-power-off"></i> 다시 로그인
+                                </button>
+                            </div>
+                        `;
+                    }
+                }
+            }, 3000);
+
+            setTimeout(() => { document.getElementById('loadingRings').style.opacity = '0'; document.getElementById('terminalText').style.opacity = '0'; document.getElementById('finalLogo').style.opacity = '1'; document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)'; setTimeout(() => { document.getElementById('splashScreen').style.opacity = '0'; document.getElementById('mainApp').classList.remove('hidden'); setTimeout(() => { document.getElementById('mainApp').style.opacity = '1'; document.getElementById('splashScreen').style.display = 'none'; navigateTo('home'); }, 50); }, 400); }, 300);
+        });
 
         function toggleAuth() { if (currentUser) { auth.signOut(); } else { auth.signInWithPopup(provider).catch((error) => { if (error.code === 'auth/popup-blocked') auth.signInWithRedirect(provider); else alert("로그인 에러: " + error.message); }); } }
         auth.getRedirectResult().catch(error => console.error(error));
 
         auth.onAuthStateChanged((user) => {
+            // [강제 철거] 인증 콜백 진입 시 스플래시/스피너 즉시 숨김
+            const splash = document.getElementById('splashScreen');
+            const rings = document.getElementById('loadingRings');
+            if (splash) splash.style.display = 'none';
+            if (rings) rings.style.display = 'none';
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('mainApp').style.opacity = '1';
+
             const authBtn = document.getElementById('authBtn'); const userInfoArea = document.getElementById('userInfoArea');
             if (user) {
                 currentUser = user; authBtn.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-power-off"></i> 로그아웃</span>`;
@@ -225,6 +259,19 @@
             } else {
                 currentUser = null; authBtn.innerHTML = `<img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> 로그인`;
                 userInfoArea.innerHTML = `<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xl">?</div><div><p class="text-sm font-bold text-slate-400 leading-tight">로그인 필요</p></div>`;
+                
+                // 유저가 없는 경우 중앙 화면에 보안 인증 에러 명확히 렌더링
+                const contentArea = document.getElementById('contentArea');
+                if (contentArea) {
+                    contentArea.innerHTML = `
+                        <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50">
+                            <p class="text-rose-500 font-bold mb-4 text-lg">보안 인증이 만료되었습니다.</p>
+                            <button onclick="toggleAuth()" class="bg-slate-800 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
+                                <i class="fa-solid fa-power-off"></i> 다시 로그인
+                            </button>
+                        </div>
+                    `;
+                }
             }
         });
 
