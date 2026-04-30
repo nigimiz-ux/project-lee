@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 
 <head>
@@ -209,124 +209,91 @@
 
         let currentUser = null; let draggedTaskKey = null; let boardData = {}; let currentEditKey = null;
 
-        // [코드 정리] 공통: 가림막 철거 및 메인 앱 노출 함수
-        function forceClearSpinnersAndShowApp() {
-            const splash = document.getElementById('splashScreen');
-            const rings = document.getElementById('loadingRings');
-            const dgLoading = document.querySelector('.dg-loading');
-            
-            if (splash) splash.style.display = 'none';
-            if (rings) rings.style.display = 'none';
+        // =============================================
+        // AUTH: Firebase Google Redirect Login (Final)
+        // =============================================
+
+        // 공통 가림막 강제 철거 함수
+        function forceClearAll() {
+            ['splashScreen', 'loadingRings'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            var dgLoading = document.querySelector('.dg-loading');
             if (dgLoading) dgLoading.style.display = 'none';
-            
-            const mainApp = document.getElementById('mainApp');
+
+            var mainApp = document.getElementById('mainApp');
             if (mainApp) {
                 mainApp.classList.remove('hidden');
-                mainApp.style.opacity = '1';
-                mainApp.style.display = 'flex'; // 무조건 보이게 처리
+                mainApp.setAttribute('style', (mainApp.getAttribute('style') || '') + '; opacity:1 !important; display:flex !important;');
             }
-
-            // [UI 복구] 로그인 버튼(authBtn)이 포함된 헤더 영역이 무조건 보이도록 설정
-            const authBtn = document.getElementById('authBtn');
-            if (authBtn) authBtn.style.display = 'flex';
+            var authBtn = document.getElementById('authBtn');
+            if (authBtn) authBtn.setAttribute('style', (authBtn.getAttribute('style') || '') + '; display:flex !important;');
         }
 
-        // 로그인 필요 시 화면 렌더링 함수
+        // 로그인 필요 시 콘텐츠 렌더링
         function renderLoginPrompt() {
-            const contentArea = document.getElementById('contentArea');
+            var contentArea = document.getElementById('contentArea');
             if (contentArea) {
-                contentArea.innerHTML = `
-                    <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50">
-                        <i class="fa-solid fa-triangle-exclamation text-4xl text-rose-400 mb-4"></i>
-                        <p class="text-rose-500 font-bold mb-6 text-xl">로그인 전 상태입니다. 권한을 확인해주세요.</p>
-                        <button onclick="toggleAuth()" class="bg-slate-800 text-white px-8 py-4 rounded-xl text-base font-bold shadow-xl hover:bg-slate-700 transition flex items-center gap-3">
-                            <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-5 h-5" alt="G"> [구글 드라이브 연동하기]
-                        </button>
-                    </div>
-                `;
-            }
-            const dgContent = document.getElementById('dg-content');
-            if (dgContent) {
-                dgContent.innerHTML = `
-                    <div class="flex flex-col items-center justify-center w-full h-full" style="padding: 40px; text-align: center;">
-                        <p style="color: #ef4444; font-weight: bold; margin-bottom: 20px;">보안 인증이 필요합니다.</p>
-                        <button onclick="toggleAuth()" style="background: #1e293b; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
-                            <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" style="width:16px;height:16px;" alt="G"> [구글 드라이브 연동하기]
-                        </button>
-                    </div>
-                `;
+                contentArea.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;background:#f8fafc;"><i class="fa-solid fa-triangle-exclamation" style="font-size:2.5rem;color:#f87171;margin-bottom:1rem;"></i><p style="color:#ef4444;font-weight:bold;font-size:1.2rem;margin-bottom:1.5rem;">로그인이 필요합니다.</p><button onclick="toggleAuth()" style="background:#1e293b;color:white;padding:14px 28px;border-radius:12px;font-weight:bold;font-size:1rem;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.15);"><img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" style="width:20px;height:20px;" alt="G"> Google 계정으로 로그인</button></div>';
             }
         }
 
-        document.addEventListener("DOMContentLoaded", () => {
-            // [강제 철거] 페이지 로드 후 딱 2초가 지나면 무조건 가림막 철거
-            setTimeout(() => {
-                forceClearSpinnersAndShowApp();
-                if (!currentUser) {
-                    renderLoginPrompt();
-                }
-                console.log("🚨 2초 경과: 로딩 스피너 완전 철거 및 UI 복구 완료");
-            }, 2000);
-        });
-
-        function toggleAuth() { 
-            if (currentUser) { 
-                auth.signOut(); 
-            } else { 
-                // [인증 로직 고정] 팝업 에러 방지를 위해 signInWithRedirect 방식 유지
-                auth.signInWithRedirect(provider).catch((error) => {
-                    console.error("로그인 호출 에러: ", error);
-                }); 
-            } 
+        // 1. 로그인 함수
+        function toggleAuth() {
+            if (currentUser) {
+                auth.signOut();
+            } else {
+                var googleProvider = new firebase.auth.GoogleAuthProvider();
+                auth.signInWithRedirect(googleProvider).catch(function(error) {
+                    console.error("로그인 호출 에러:", error);
+                });
+            }
         }
 
-        // [인증 로직 고정] 리다이렉트 로그인 결과 확인
-        auth.getRedirectResult().then(result => {
+        // 2. 리다이렉트 결과 수신
+        auth.getRedirectResult().then(function(result) {
+            forceClearAll();
             if (result && result.user) {
                 console.log("리다이렉트 로그인 성공:", result.user.email);
             }
-        }).catch(error => {
+        }).catch(function(error) {
             console.error("리다이렉트 결과 에러:", error);
-            forceClearSpinnersAndShowApp();
+            forceClearAll();
             renderLoginPrompt();
         });
 
-        auth.onAuthStateChanged((user) => {
-            forceClearSpinnersAndShowApp();
+        // 3. 실시간 유저 상태 감지
+        auth.onAuthStateChanged(function(user) {
+            forceClearAll();
+            var authBtn = document.getElementById('authBtn');
+            var userInfoArea = document.getElementById('userInfoArea');
 
-            const authBtn = document.getElementById('authBtn'); 
-            const userInfoArea = document.getElementById('userInfoArea');
-            
             if (user) {
-                currentUser = user; 
-                if (authBtn) {
-                    authBtn.innerHTML = \`<span class="text-rose-500"><i class="fa-solid fa-power-off"></i> 로그아웃</span>\`;
-                }
-                if (userInfoArea) {
-                    userInfoArea.innerHTML = \`<img src="\${user.photoURL || 'https://ui-avatars.com/api/?name=Lee'}" class="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white"><div><p class="text-sm font-bold text-white leading-tight">\${user.displayName || 'Executive LEE'}</p><p class="text-xs text-slate-500">Executive Admin</p></div>\`;
-                }
-                
+                currentUser = user;
+                if (authBtn) authBtn.innerHTML = '<span class="text-rose-500"><i class="fa-solid fa-power-off"></i> 로그아웃</span>';
+                if (userInfoArea) userInfoArea.innerHTML = '<img src="' + (user.photoURL || 'https://ui-avatars.com/api/?name=Lee') + '" class="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white"><div><p class="text-sm font-bold text-white leading-tight">' + (user.displayName || 'Executive LEE') + '</p><p class="text-xs text-slate-500">Executive Admin</p></div>';
+
                 if (document.getElementById('kanbanContainer')) initKanban();
                 if (document.getElementById('vaultTableBody')) initVault();
                 if (document.getElementById('langStudioContainer')) initLangStudio();
-                
-                // 만약 홈 화면이 아니라면 홈으로 한 번 라우팅
-                const contentArea = document.getElementById('contentArea');
-                if (contentArea && contentArea.innerHTML.trim() === '') {
-                    navigateTo('home');
-                }
+
+                var contentArea = document.getElementById('contentArea');
+                if (contentArea && contentArea.innerHTML.trim() === '') navigateTo('home');
             } else {
-                currentUser = null; 
-                if (authBtn) {
-                    authBtn.innerHTML = \`<img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> 로그인\`;
-                }
-                if (userInfoArea) {
-                    userInfoArea.innerHTML = \`<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xl">?</div><div><p class="text-sm font-bold text-slate-400 leading-tight">로그인 필요</p></div>\`;
-                }
-                
+                currentUser = null;
+                if (authBtn) authBtn.innerHTML = '<img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> 로그인';
+                if (userInfoArea) userInfoArea.innerHTML = '<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xl">?</div><div><p class="text-sm font-bold text-slate-400 leading-tight">로그인 필요</p></div>';
                 renderLoginPrompt();
             }
         });
+
+        // [최후의 안전장치] 2초 후 가림막 무조건 철거
+        setTimeout(function() {
+            forceClearAll();
+            if (!currentUser) renderLoginPrompt();
+            console.log("2초 경과: 가림막 강제 철거 완료");
+        }, 2000);
 
         // 🚀 업데이트된 대시보드 및 구글포토 런처
         const pages = {
