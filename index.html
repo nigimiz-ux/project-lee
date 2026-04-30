@@ -237,15 +237,52 @@
             setTimeout(() => { document.getElementById('loadingRings').style.opacity = '0'; document.getElementById('terminalText').style.opacity = '0'; document.getElementById('finalLogo').style.opacity = '1'; document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)'; setTimeout(() => { document.getElementById('splashScreen').style.opacity = '0'; document.getElementById('mainApp').classList.remove('hidden'); setTimeout(() => { document.getElementById('mainApp').style.opacity = '1'; document.getElementById('splashScreen').style.display = 'none'; navigateTo('home'); }, 50); }, 400); }, 300);
         });
 
-        function toggleAuth() { if (currentUser) { auth.signOut(); } else { auth.signInWithPopup(provider).catch((error) => { if (error.code === 'auth/popup-blocked') auth.signInWithRedirect(provider); else alert("로그인 에러: " + error.message); }); } }
-        auth.getRedirectResult().catch(error => console.error(error));
+        function toggleAuth() { 
+            if (currentUser) { 
+                auth.signOut(); 
+            } else { 
+                // 팝업 에러(COOP)를 피하기 위해 전면 리다이렉트 로그인으로 교체
+                auth.signInWithRedirect(provider).catch((error) => {
+                    console.error("로그인 호출 에러: ", error);
+                }); 
+            } 
+        }
+
+        auth.getRedirectResult().catch(error => {
+            console.error("리다이렉트 결과 에러:", error);
+            // 모든 로딩 스피너 및 화면 덮개 강제 철거
+            const splash = document.getElementById('splashScreen');
+            const rings = document.getElementById('loadingRings');
+            const dgLoading = document.querySelector('.dg-loading'); // "세션 복구 중..." 스피너
+            if (splash) splash.style.display = 'none';
+            if (rings) rings.style.display = 'none';
+            if (dgLoading) dgLoading.style.display = 'none';
+            
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('mainApp').style.opacity = '1';
+            
+            // 로그인 유도 버튼 즉시 렌더링
+            const contentArea = document.getElementById('contentArea');
+            if (contentArea) {
+                contentArea.innerHTML = `
+                    <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50">
+                        <p class="text-rose-500 font-bold mb-4 text-lg">보안 인증 로그인에 실패했습니다.</p>
+                        <button onclick="toggleAuth()" class="bg-slate-800 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
+                            <i class="fa-solid fa-power-off"></i> 다시 로그인
+                        </button>
+                    </div>
+                `;
+            }
+        });
 
         auth.onAuthStateChanged((user) => {
             // [강제 철거] 인증 콜백 진입 시 스플래시/스피너 즉시 숨김
             const splash = document.getElementById('splashScreen');
             const rings = document.getElementById('loadingRings');
+            const dgLoading = document.querySelector('.dg-loading'); // "세션 복구 중..." 스피너
             if (splash) splash.style.display = 'none';
             if (rings) rings.style.display = 'none';
+            if (dgLoading) dgLoading.style.display = 'none';
             document.getElementById('mainApp').classList.remove('hidden');
             document.getElementById('mainApp').style.opacity = '1';
 
