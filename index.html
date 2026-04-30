@@ -241,23 +241,21 @@
         let currentUser = null; let draggedTaskKey = null; let boardData = {}; let currentEditKey = null;
 
         // ==========================================
-        // 🔒 Firebase Auth 안정화 (Redirect + Persistence)
+        // 🔒 Firebase Auth 하이브리드 안정화 버전
         // ==========================================
-        // 반드시 최초 1회 persistence 설정
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-            .then(() => {
-                console.log("✅ Persistence LOCAL 적용 완료");
-            })
-            .catch((error) => {
-                console.error("❌ Persistence 설정 실패:", error);
-            });
 
-        // 공통 UI 강제 해제
+        // 1. 세션 유지 설정 (출입증 시멘트 바르기)
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+            .then(() => console.log("✅ 세션 유지 설정 완료"))
+            .catch((error) => console.error("❌ 세션 설정 에러:", error));
+
+        // 2. 가림막 강제 철거 함수
         function forceClearAll() {
             const splash = document.getElementById('splashScreen');
             const rings = document.getElementById('loadingRings');
             if (splash) splash.style.display = 'none';
             if (rings) rings.style.display = 'none';
+
             const mainApp = document.getElementById('mainApp');
             if (mainApp) {
                 mainApp.classList.remove('hidden');
@@ -265,8 +263,8 @@
                 mainApp.style.opacity = '1';
             }
         }
-        
-        // 로그인 필요 UI
+
+        // 3. 로그인 안내 화면 렌더링
         function renderLoginPrompt() {
             const contentArea = document.getElementById('contentArea');
             if (!contentArea) return;
@@ -275,69 +273,78 @@
                 <div class="w-24 h-24 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-6 border border-slate-100">
                     <i class="fa-solid fa-lock text-4xl text-slate-300"></i>
                 </div>
-                <h3 class="text-2xl font-black text-slate-800 mb-2">접근 권한이 없습니다</h3>
-                <p class="text-slate-500 mb-8 text-center max-w-sm">로그인이 필요합니다.</p>
-                <button onclick="toggleAuth()" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl">
-                    Google 계정으로 로그인
+                <h3 class="text-2xl font-black text-slate-800 mb-2">Project LEE V3.8</h3>
+                <p class="text-slate-500 mb-8 text-center max-w-sm">시스템에 접근하려면 관리자 로그인이 필요합니다.</p>
+                <button onclick="toggleAuth()" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition-all hover:scale-105 flex items-center gap-3">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 bg-white rounded-full p-0.5" alt="G"> 
+                    Google 계정으로 시작하기
                 </button>
             </div>`;
         }
-        
-        // 🔥 핵심: redirect 전용 로그인
+
+        // 4. 🔥 핵심: 하이브리드 로그인 함수
         function toggleAuth() {
             if (currentUser) {
-                auth.signOut().then(() => location.reload());
+                auth.signOut().then(() => window.location.reload());
                 return;
             }
+
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithRedirect(provider);
+            provider.setCustomParameters({ prompt: 'select_account' });
+
+            // 1차 시도: 팝업 (가장 빠르고 에러가 적음)
+            auth.signInWithPopup(provider).then((result) => {
+                console.log("✅ 팝업 로그인 성공!");
+                forceClearAll();
+            }).catch((error) => {
+                console.warn("⚠️ 팝업 차단됨, 리다이렉트로 우회 시도:", error);
+                // 2차 시도: 팝업이 막히면 리다이렉트로 전환
+                auth.signInWithRedirect(provider);
+            });
         }
-        
-        // 🔥 redirect 결과 처리 (페이지 복귀 시 1회 실행)
-        (function handleRedirect() {
-            auth.getRedirectResult()
-                .then((result) => {
-                    if (result && result.user) {
-                        console.log("✅ Redirect 로그인 성공:", result.user.email);
-                    }
-                })
-                .catch((error) => {
-                    console.error("❌ Redirect 에러:", error);
-                })
-                .finally(() => {
-                    forceClearAll();
-                });
-        })();
-        
-        // 🔥 상태 감지 (실질적 핵심 로직)
-        auth.onAuthStateChanged((user) => {
+
+        // 5. 리다이렉트로 돌아왔을 때 결과 처리
+        auth.getRedirectResult().then((result) => {
+            if (result && result.user) {
+                console.log("✅ 리다이렉트 로그인 성공!");
+                forceClearAll();
+            }
+        }).catch((error) => {
+            console.error("❌ 리다이렉트 에러:", error);
             forceClearAll();
+            renderLoginPrompt();
+        });
+
+        // 6. 유저 상태 실시간 감지 (UI 업데이트)
+        auth.onAuthStateChanged((user) => {
+            forceClearAll(); // 로딩 제거
+            
             const loginBtn = document.getElementById('loginBtn');
             const userProfile = document.getElementById('userProfile');
             const userName = document.getElementById('userName');
             const userPhoto = document.getElementById('userPhoto');
             const userInfoArea = document.getElementById('userInfoArea');
+
             if (user) {
                 currentUser = user;
                 const name = user.displayName || '관리자님';
                 const photo = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
-                // 상단 UI
+
                 if (loginBtn) loginBtn.style.display = 'none';
                 if (userProfile) {
                     userProfile.style.display = 'flex';
                     if (userName) userName.textContent = name;
                     if (userPhoto) userPhoto.src = photo;
                 }
-                // 사이드바
                 if (userInfoArea) {
                     userInfoArea.innerHTML = `
                         <img src="${photo}" class="w-10 h-10 rounded-full border-2 border-indigo-500">
-                        <div>
-                            <p class="text-sm font-bold text-white">${name}</p>
+                        <div class="overflow-hidden">
+                            <p class="text-sm font-bold text-white truncate">${name}</p>
                             <p class="text-xs text-indigo-400">Executive Admin</p>
                         </div>`;
                 }
-                // 콘텐츠 초기화 (기존 앱 연결)
+                
                 const contentArea = document.getElementById('contentArea');
                 if (contentArea && contentArea.innerHTML.trim() === '') {
                     if (typeof navigateTo === 'function') navigateTo('home');
@@ -348,18 +355,17 @@
                 if (userProfile) userProfile.style.display = 'none';
                 if (userInfoArea) {
                     userInfoArea.innerHTML = `
-                        <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500"><i class="fa-solid fa-user"></i></div>
+                        <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500"><i class="fa-solid fa-user"></i></div>
                         <div><p class="text-sm font-bold text-slate-500">로그인 필요</p></div>`;
                 }
                 renderLoginPrompt();
             }
         });
 
-        // 6. [최후의 안전장치] 무한 로딩 지옥 탈출 타이머 (2초 뒤 무조건 개방)
+        // 7. 최후의 2초 안전장치
         setTimeout(() => {
             forceClearAll();
             if (!currentUser) renderLoginPrompt();
-            console.warn("🚨 안전장치 가동: 2초 타이머로 가림막 강제 철거 완료");
         }, 2000);
 
         // =========================================================================
