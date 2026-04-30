@@ -19,31 +19,64 @@ let driveState = {
 };
 
 // ===============================
+// ERROR HANDLER
+// ===============================
+function renderError(e) {
+  const contentArea = document.getElementById('contentArea');
+  if (contentArea) {
+    const errorMsg = e instanceof Error ? e.message : (typeof e === 'object' ? JSON.stringify(e) : e);
+    contentArea.innerHTML = `
+      <div class="flex flex-col items-center justify-center w-full h-full bg-red-50 p-8 animate-fade-in">
+          <i class="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-6 drop-shadow-md"></i>
+          <h3 class="text-2xl font-black text-red-700 mb-2">드라이브 연결 에러 발생</h3>
+          <p class="text-red-500 mb-8 text-center max-w-lg whitespace-pre-wrap break-words border border-red-200 bg-red-100 p-4 rounded-xl shadow-sm">${errorMsg}</p>
+          <button onclick="initDrive()" class="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition-all hover:-translate-y-1 flex items-center gap-2">
+            <i class="fa-solid fa-rotate-right"></i> 다시 시도
+          </button>
+      </div>`;
+  }
+  console.error("Drive Error:", e);
+}
+
+// ===============================
 // INIT
 // ===============================
 async function initDrive() {
-  await loadScript('https://apis.google.com/js/api.js');
-  await loadScript('https://accounts.google.com/gsi/client');
-
-  await new Promise(res => gapi.load('client', res));
-
-  await gapi.client.init({
-    apiKey: DRIVE_CONFIG.API_KEY,
-    discoveryDocs: DRIVE_CONFIG.DISCOVERY_DOCS,
-  });
-
-  driveState.tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: DRIVE_CONFIG.CLIENT_ID,
-    scope: DRIVE_CONFIG.SCOPES,
-    callback: (resp) => {
-      if (resp.error) return;
-      gapi.client.setToken({ access_token: resp.access_token });
-      driveState.tokenExpiresAt = Date.now() + resp.expires_in * 1000;
-      loadFiles();
+  try {
+    // 렌더링 전 로딩 표시 (빈 화면 방지용)
+    const contentArea = document.getElementById('contentArea');
+    if (contentArea && contentArea.innerHTML.trim() === '') {
+      contentArea.innerHTML = '<div class="flex items-center justify-center w-full h-full"><i class="fa-solid fa-spinner fa-spin text-4xl text-slate-300"></i></div>';
     }
-  });
 
-  loadFiles();
+    await loadScript('https://apis.google.com/js/api.js');
+    await loadScript('https://accounts.google.com/gsi/client');
+
+    await new Promise((res, rej) => gapi.load('client', { callback: res, onerror: rej }));
+
+    await gapi.client.init({
+      apiKey: DRIVE_CONFIG.API_KEY,
+      discoveryDocs: DRIVE_CONFIG.DISCOVERY_DOCS,
+    });
+
+    driveState.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: DRIVE_CONFIG.CLIENT_ID,
+      scope: DRIVE_CONFIG.SCOPES,
+      callback: (resp) => {
+        if (resp.error) {
+            renderError(resp.error);
+            return;
+        }
+        gapi.client.setToken({ access_token: resp.access_token });
+        driveState.tokenExpiresAt = Date.now() + resp.expires_in * 1000;
+        loadFiles();
+      }
+    });
+
+    loadFiles();
+  } catch (e) {
+    renderError(e);
+  }
 }
 
 // ===============================
@@ -54,40 +87,55 @@ window.signInDrive = function() {
 }
 
 function hasToken() {
-  const t = gapi.client.getToken();
-  return t && driveState.tokenExpiresAt > Date.now();
+  try {
+    if (!gapi || !gapi.client || !gapi.client.getToken) return false;
+    const t = gapi.client.getToken();
+    return t && driveState.tokenExpiresAt > Date.now();
+  } catch (e) {
+    return false;
+  }
 }
 
 // ===============================
 // FILE LOAD (폴더 기반)
 // ===============================
 async function loadFiles(folderId = driveState.currentFolderId) {
-  if (!hasToken()) {
-    document.getElementById('contentArea').innerHTML = `
-      <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50 p-8 animate-fade-in">
-          <i class="fa-brands fa-google-drive text-6xl text-blue-500 mb-6 drop-shadow-md"></i>
-          <h3 class="text-2xl font-black text-slate-800 mb-2">Google Drive 권한 필요</h3>
-          <p class="text-slate-500 mb-8 text-center max-w-sm">드라이브 탐색기를 사용하려면 먼저 연동을 진행해 주세요.</p>
-          <button onclick="signInDrive()" class="px-8 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-all hover:-translate-y-1 flex items-center gap-3">
-              <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-5 h-5 bg-white rounded-full p-0.5" alt="G"> 
-              Drive 연동하기
-          </button>
-      </div>`;
-    return;
+  try {
+    if (!hasToken()) {
+      document.getElementById('contentArea').innerHTML = `
+        <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50 p-8 animate-fade-in">
+            <i class="fa-brands fa-google-drive text-6xl text-blue-500 mb-6 drop-shadow-md"></i>
+            <h3 class="text-2xl font-black text-slate-800 mb-2">Google Drive 권한 필요</h3>
+            <p class="text-slate-500 mb-8 text-center max-w-sm">드라이브 탐색기를 사용하려면 먼저 연동을 진행해 주세요.</p>
+            <button onclick="signInDrive()" class="px-8 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-all hover:-translate-y-1 flex items-center gap-3">
+                <img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-5 h-5 bg-white rounded-full p-0.5" alt="G"> 
+                Drive 연동하기
+            </button>
+        </div>`;
+      return;
+    }
+
+    // 로딩 표시
+    const contentArea = document.getElementById('contentArea');
+    if (contentArea && contentArea.innerHTML.indexOf('fa-spinner') === -1 && contentArea.innerHTML.indexOf('Google Drive 권한 필요') === -1) {
+        // 이미 렌더링된 상태가 아니라면 스피너를 보여줌 (너무 깜빡이는 것 방지)
+    }
+
+    driveState.currentFolderId = folderId;
+
+    const q = \`'\${folderId}' in parents and trashed = false\`;
+
+    const res = await gapi.client.drive.files.list({
+      pageSize: 50,
+      fields: 'files(id,name,mimeType,thumbnailLink,webViewLink,iconLink)',
+      orderBy: 'folder, modifiedTime desc',
+      q
+    });
+
+    renderFiles(res.result.files);
+  } catch (e) {
+    renderError(e);
   }
-
-  driveState.currentFolderId = folderId;
-
-  const q = `'${folderId}' in parents and trashed = false`;
-
-  const res = await gapi.client.drive.files.list({
-    pageSize: 50,
-    fields: 'files(id,name,mimeType,thumbnailLink,webViewLink,iconLink)',
-    orderBy: 'folder, modifiedTime desc',
-    q
-  });
-
-  renderFiles(res.result.files);
 }
 
 // ===============================
@@ -280,11 +328,12 @@ async function createFolder(name) {
 // UTIL
 // ===============================
 function loadScript(src) {
-  return new Promise(res => {
+  return new Promise((res, rej) => {
     if (document.querySelector(\`script[src="\${src}"]\`)) return res();
     const s = document.createElement('script');
     s.src = src;
     s.onload = res;
+    s.onerror = () => rej(new Error(\`Failed to load script: \${src}\`));
     document.head.appendChild(s);
   });
 }
