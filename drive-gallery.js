@@ -126,8 +126,9 @@ async function loadFiles() {
   try {
     const res = await gapi.client.drive.files.list({
       pageSize: 50,
-      fields: 'files(id,name,thumbnailLink)',
-      q: "trashed = false" // 휴지통 파일 제외
+      fields: 'files(id,name,thumbnailLink,mimeType,webViewLink,webContentLink)',
+      q: "trashed = false", // 휴지통 파일 제외
+      orderBy: "folder, modifiedTime desc"
     });
 
     renderFiles(res.result.files);
@@ -142,29 +143,114 @@ async function loadFiles() {
 // showLogin() 은 삭제됨 (loadFiles 내부에 자연스럽게 통합됨)
 
 function renderFiles(files) {
+  let filesHtml = '';
   if (!files || files.length === 0) {
-    document.getElementById('contentArea').innerHTML = '<div style="padding:40px; text-align:center; color:#64748b; font-weight:bold;">파일이 없습니다.</div>';
-    return;
+    filesHtml = '<div style="padding:40px; text-align:center; color:#64748b; font-weight:bold; width: 100%;">파일이 없습니다.</div>';
+  } else {
+    filesHtml = files.map(f => {
+      const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+      const iconOrThumb = isFolder 
+        ? `<div style="width:100px; height:100px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:8px; margin-bottom:10px;"><i class="fa-solid fa-folder text-4xl text-amber-400"></i></div>`
+        : `<img src="${f.thumbnailLink || 'https://via.placeholder.com/100?text=No+Thumb'}" style="width:100px; height:100px; object-fit:cover; border-radius:8px; margin-bottom:10px; background:#f1f5f9;" />`;
+      
+      const actionLink = f.webContentLink || f.webViewLink;
+      const actionBtn = actionLink 
+        ? `<a href="${actionLink}" target="_blank" style="margin-top:8px; padding:6px 12px; background:#e2e8f0; color:#475569; border-radius:6px; font-size:11px; font-weight:bold; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'"><i class="fa-solid ${f.webContentLink ? 'fa-download' : 'fa-eye'}"></i> ${f.webContentLink ? '다운로드' : '보기'}</a>` 
+        : '';
+
+      return `
+        <div style="margin:10px; display:inline-flex; flex-direction:column; align-items:center; background:#fff; padding:16px; border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; transition: transform 0.2s; cursor:pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+          ${iconOrThumb}
+          <p style="font-size:13px; color:#334155; font-weight:bold; width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;" title="${f.name}">${f.name}</p>
+          ${actionBtn}
+        </div>
+      `;
+    }).join('');
   }
 
-  const html = files.map(f => `
-    <div style="margin:10px; display:inline-flex; flex-direction:column; align-items:center; background:#fff; padding:12px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-      <img src="${f.thumbnailLink || 'https://via.placeholder.com/100?text=No+Thumb'}" style="width:100px; height:100px; object-fit:cover; border-radius:8px; margin-bottom:10px; background:#f1f5f9;" />
-      <p style="font-size:12px; color:#334155; font-weight:bold; width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;">${f.name}</p>
-    </div>
-  `).join('');
-
   document.getElementById('contentArea').innerHTML = `
-    <div style="padding:24px; background:#f8fafc; height:100%; overflow-y:auto;" class="custom-scrollbar">
-        <h2 style="font-size:1.5rem; font-weight:900; margin-bottom:20px; color:#1e293b; display:flex; align-items:center; gap:10px;">
-            <i class="fa-brands fa-google-drive text-blue-500"></i> My Drive Storage
-        </h2>
+    <div style="padding:24px; background:#f8fafc; height:100%; overflow-y:auto; display:flex; flex-direction:column;" class="custom-scrollbar animate-fade-in">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px; background:white; padding:20px; border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,0.02); border:1px solid #f1f5f9;">
+            <h2 style="font-size:1.5rem; font-weight:900; color:#1e293b; display:flex; align-items:center; gap:10px; margin:0;">
+                <i class="fa-brands fa-google-drive text-blue-500"></i> My Drive Storage
+            </h2>
+            
+            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                <!-- Upload UI -->
+                <div style="display:flex; align-items:center; gap:8px; background:#f8fafc; padding:8px 16px; border-radius:12px; border:1px solid #e2e8f0;">
+                    <label for="driveUploadInput" style="cursor:pointer; display:flex; align-items:center; gap:6px; color:#475569; font-size:13px; font-weight:bold;">
+                        <i class="fa-solid fa-paperclip"></i> 파일 선택
+                    </label>
+                    <input type="file" id="driveUploadInput" style="display:none;" onchange="document.getElementById('uploadFileName').textContent = this.files[0] ? this.files[0].name : '선택된 파일 없음'" />
+                    <span id="uploadFileName" style="font-size:12px; color:#94a3b8; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">선택된 파일 없음</span>
+                    <button onclick="handleDriveUpload(event)" style="background:#3b82f6; color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> 업로드
+                    </button>
+                </div>
+
+                <!-- Create Folder UI -->
+                <div style="display:flex; align-items:center; gap:8px; background:#f8fafc; padding:8px 16px; border-radius:12px; border:1px solid #e2e8f0;">
+                    <i class="fa-solid fa-folder-plus text-amber-500"></i>
+                    <input type="text" id="driveFolderName" placeholder="새 폴더명" style="border:1px solid #cbd5e1; padding:6px 10px; border-radius:6px; font-size:13px; outline:none; width:120px;" />
+                    <button onclick="handleCreateFolder(event)" style="background:#10b981; color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+                        생성
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div style="display:flex; flex-wrap:wrap;">
-          ${html}
+          ${filesHtml}
         </div>
     </div>
   `;
 }
+
+// Handlers for HTML buttons
+window.handleDriveUpload = async function(event) {
+    const input = document.getElementById('driveUploadInput');
+    if (!input.files || input.files.length === 0) {
+        alert('업로드할 파일을 선택해주세요.');
+        return;
+    }
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 처리중...';
+    btn.disabled = true;
+
+    try {
+        await uploadFile(input.files[0]);
+        input.value = '';
+        document.getElementById('uploadFileName').textContent = '선택된 파일 없음';
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
+
+window.handleCreateFolder = async function(event) {
+    const input = document.getElementById('driveFolderName');
+    const folderName = input.value.trim();
+    if (!folderName) {
+        alert('폴더명을 입력해주세요.');
+        return;
+    }
+    
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 생성중...';
+    btn.disabled = true;
+
+    try {
+        await createFolder(folderName);
+        input.value = '';
+    } catch (e) {
+        alert('폴더 생성 실패: ' + e.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
 
 // ===============================
 // 6. UPLOAD (Queue 적용)
@@ -217,6 +303,29 @@ async function uploadToDrive(file) {
   );
 
   if (!res.ok) throw new Error('upload failed');
+}
+
+// ===============================
+// 7. FOLDER CREATION
+// ===============================
+async function createFolder(folderName) {
+  const token = gapi.client.getToken().access_token;
+  
+  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder'
+    })
+  });
+
+  if (!res.ok) throw new Error('folder creation failed');
+  console.log('✅ 폴더 생성 성공:', folderName);
+  loadFiles(); // 갱신
 }
 
 // ===============================
