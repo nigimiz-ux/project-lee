@@ -630,7 +630,18 @@ async function trySilentDriveSignIn() {
     await initDriveSession();
   } catch (e) {
     console.warn('[DriveGallery] silent login failed', e);
-    showDriveSignIn();
+    const loadingEl = document.querySelector('.dg-loading');
+    if (loadingEl) {
+      loadingEl.style.display = 'none';
+    }
+    document.getElementById('dg-content').innerHTML = `
+      <div class="dg-signin" style="text-align: center; padding: 40px;">
+        <p style="color: #ef4444; font-weight: bold; margin-bottom: 16px;">보안 인증이 만료되었습니다.</p>
+        <button class="dg-signin-btn" onclick="signInDrive()" style="background: #1e293b; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+          [다시 로그인]
+        </button>
+      </div>
+    `;
   }
 }
 
@@ -706,6 +717,7 @@ async function initDriveSession() {
     console.error('[DriveGallery]', e);
     showDriveToast('드라이브 연결 오류');
     setDriveLoading(false);
+    throw e;
   }
 }
 
