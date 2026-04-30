@@ -214,9 +214,18 @@
             setTimeout(() => {
                 const splash = document.getElementById('splashScreen');
                 const rings = document.getElementById('loadingRings');
-                if (splash && splash.style.display !== 'none') {
-                    splash.style.display = 'none';
+                const dgLoading = document.querySelector('.dg-loading');
+                
+                let isStuck = false;
+                if (splash && splash.style.display !== 'none') isStuck = true;
+                if (rings && rings.style.display !== 'none') isStuck = true;
+                if (dgLoading && dgLoading.style.display !== 'none') isStuck = true;
+
+                if (isStuck) {
+                    if (splash) splash.style.display = 'none';
                     if (rings) rings.style.display = 'none';
+                    if (dgLoading) dgLoading.style.display = 'none';
+                    
                     document.getElementById('mainApp').classList.remove('hidden');
                     document.getElementById('mainApp').style.opacity = '1';
                     
@@ -224,7 +233,7 @@
                     if (contentArea) {
                         contentArea.innerHTML = `
                             <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50">
-                                <p class="text-rose-500 font-bold mb-4 text-lg">보안 인증이 만료되었습니다.</p>
+                                <p class="text-rose-500 font-bold mb-4 text-lg">보안 인증이 만료되었습니다. (시간 초과)</p>
                                 <button onclick="toggleAuth()" class="bg-slate-800 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
                                     <i class="fa-solid fa-power-off"></i> 다시 로그인
                                 </button>
@@ -234,7 +243,7 @@
                 }
             }, 3000);
 
-            setTimeout(() => { document.getElementById('loadingRings').style.opacity = '0'; document.getElementById('terminalText').style.opacity = '0'; document.getElementById('finalLogo').style.opacity = '1'; document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)'; setTimeout(() => { document.getElementById('splashScreen').style.opacity = '0'; document.getElementById('mainApp').classList.remove('hidden'); setTimeout(() => { document.getElementById('mainApp').style.opacity = '1'; document.getElementById('splashScreen').style.display = 'none'; navigateTo('home'); }, 50); }, 400); }, 300);
+            setTimeout(() => { document.getElementById('loadingRings').style.opacity = '0'; document.getElementById('terminalText').style.opacity = '0'; document.getElementById('finalLogo').style.opacity = '1'; document.getElementById('finalLogo').style.transform = 'translate(-50%, -50%) scale(1)'; setTimeout(() => { document.getElementById('splashScreen').style.opacity = '0'; document.getElementById('mainApp').classList.remove('hidden'); setTimeout(() => { document.getElementById('mainApp').style.opacity = '1'; document.getElementById('splashScreen').style.display = 'none'; if(currentUser !== null) navigateTo('home'); }, 50); }, 400); }, 300);
         });
 
         function toggleAuth() { 
@@ -293,18 +302,36 @@
                 if (document.getElementById('kanbanContainer')) initKanban();
                 if (document.getElementById('vaultTableBody')) initVault();
                 if (document.getElementById('langStudioContainer')) initLangStudio();
+                
+                // 만약 홈 화면이 아니라면 홈으로 한 번 라우팅
+                if (document.getElementById('contentArea') && document.getElementById('contentArea').innerHTML.trim() === '') {
+                    navigateTo('home');
+                }
             } else {
                 currentUser = null; authBtn.innerHTML = `<img src="https://www.google.com/images/branding/product/2x/googleg_32dp.png" class="w-4 h-4" alt="G"> 로그인`;
                 userInfoArea.innerHTML = `<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xl">?</div><div><p class="text-sm font-bold text-slate-400 leading-tight">로그인 필요</p></div>`;
                 
-                // 유저가 없는 경우 중앙 화면에 보안 인증 에러 명확히 렌더링
+                // 유저가 없는 경우 즉시 모든 영역에 로그인 유도 렌더링
                 const contentArea = document.getElementById('contentArea');
                 if (contentArea) {
                     contentArea.innerHTML = `
                         <div class="flex flex-col items-center justify-center w-full h-full bg-slate-50">
-                            <p class="text-rose-500 font-bold mb-4 text-lg">보안 인증이 만료되었습니다.</p>
-                            <button onclick="toggleAuth()" class="bg-slate-800 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
-                                <i class="fa-solid fa-power-off"></i> 다시 로그인
+                            <i class="fa-solid fa-triangle-exclamation text-4xl text-rose-400 mb-4"></i>
+                            <p class="text-rose-500 font-bold mb-6 text-xl">로그인 전 상태입니다. 권한을 확인해주세요.</p>
+                            <button onclick="toggleAuth()" class="bg-slate-800 text-white px-8 py-4 rounded-xl text-base font-bold shadow-xl hover:bg-slate-700 transition flex items-center gap-3">
+                                <i class="fa-brands fa-google text-rose-400"></i> Google 계정으로 로그인
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                const dgContent = document.getElementById('dg-content');
+                if (dgContent) {
+                    dgContent.innerHTML = `
+                        <div class="flex flex-col items-center justify-center w-full h-full" style="padding: 40px; text-align: center;">
+                            <p style="color: #ef4444; font-weight: bold; margin-bottom: 20px;">보안 인증이 필요합니다.</p>
+                            <button onclick="toggleAuth()" style="background: #1e293b; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                                [다시 로그인]
                             </button>
                         </div>
                     `;
