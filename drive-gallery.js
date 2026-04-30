@@ -9,6 +9,24 @@
 // 4. 기존 Google Photos 메뉴 클릭 시 renderDriveGallery() 호출
 // ============================================================
 
+// [가장 중요] 무한 로딩 스피너 방지: 3초 후 강제 철거 보호 로직
+setTimeout(() => {
+  const idsToHide = ['loadingRings', 'splashScreen', 'loader'];
+  idsToHide.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const dgLoading = document.querySelector('.dg-loading');
+  if (dgLoading) dgLoading.style.display = 'none';
+  
+  const mainApp = document.getElementById('mainApp');
+  if (mainApp) {
+      mainApp.classList.remove('hidden');
+      mainApp.style.opacity = '1';
+      mainApp.style.display = 'flex';
+  }
+}, 3000);
+
 const DRIVE_CONFIG = {
   CLIENT_ID: '299405203142-8cdiq5unru0ocif4qti948hsmm2ge83h.apps.googleusercontent.com',
   API_KEY: 'AIzaSyBLbhkWaq44NBPTHQKZyCwaEBOWYjNlcWU',
@@ -662,7 +680,13 @@ async function ensureDriveAccessToken(forceConsent, options = {}) {
     : (forceConsent || !driveState.consentGranted ? 'consent' : '');
 
   const tokenResponse = await new Promise((resolve, reject) => {
+    // 3초 후 강제 reject (팝업 차단 등으로 콜백이 오지 않는 경우 대비)
+    const timeoutId = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, 3000);
+
     driveState.tokenClient.callback = (resp) => {
+      clearTimeout(timeoutId);
       if (resp?.error) {
         reject(resp);
         return;
