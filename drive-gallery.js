@@ -4,7 +4,7 @@
 // ===============================
 
 // ✅ GAS 배포 후 여기에 URL 입력
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzof8Np-moBYs5tc7xpHReig6dCQk-iaKH_TCi9R8T5zdtNqxfyX9FwafHVP3wskTS_/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxnxmP-UrTOmUof6RrEZGGeQTjvroWcHsAo3lVluPbpRir3KCyPoF4IbYpxwwmyBCtX/exec';
 
 // ===============================
 // 상태
