@@ -212,7 +212,7 @@ let _uploadTokenClient = null;
 
 function requestUploadToken() {
   return new Promise((resolve) => {
-    const UPLOAD_CLIENT_ID = 'AKfycbzof8Np-moBYs5tc7xpHReig6dCQk-iaKH_TCi9R8T5zdtNqxfyX9FwafHVP3wskTS_';
+    const UPLOAD_CLIENT_ID = '447245019645-3jouqsueg0foed18d8iosmrtpcocbt1c.apps.googleusercontent.com';
 
     if (!UPLOAD_CLIENT_ID || UPLOAD_CLIENT_ID === 'YOUR_OAUTH_CLIENT_ID_HERE') {
       alert('업로드 기능을 사용하려면 drive-gallery.js의 UPLOAD_CLIENT_ID를 설정해 주세요.');
