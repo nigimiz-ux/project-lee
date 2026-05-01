@@ -225,7 +225,7 @@ function requestUploadToken() {
           scope: 'https://www.googleapis.com/auth/drive.file',
           callback: (resp) => {
             if (resp.error) { console.error(resp.error); resolve(null); return; }
-            //✅ sessionStorage저장 + 토큰 값 직접 반환
+            // ✅ sessionStorage 저장 + 토큰 값 직접 반환
             sessionStorage.setItem('drive_access_token', resp.access_token);
             sessionStorage.setItem('drive_token_exp', String(Date.now() + resp.expires_in * 1000));
             resolve(resp.access_token);
@@ -349,9 +349,9 @@ function renderFiles(files, quota) {
       <!-- 파일 그리드 -->
       <div class="flex flex-wrap gap-4 items-start content-start flex-1">
         ${files.length > 0
-      ? list
-      : '<div class="w-full py-20 flex flex-col items-center justify-center text-slate-400 font-bold"><i class="fa-solid fa-folder-open text-5xl mb-4 opacity-50 block"></i>이 폴더는 비어 있습니다.</div>'
-    }
+          ? list
+          : '<div class="w-full py-20 flex flex-col items-center justify-center text-slate-400 font-bold"><i class="fa-solid fa-folder-open text-5xl mb-4 opacity-50 block"></i>이 폴더는 비어 있습니다.</div>'
+        }
       </div>
     </div>
   `;
