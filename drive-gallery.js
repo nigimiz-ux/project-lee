@@ -4,7 +4,7 @@
 // ===============================
 
 // ✅ GAS 배포 후 여기에 URL 입력
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxIDLj7FP7i7UdyikV0xslV6RSiOIeY16CCMF8slz51-GLcQDLlB08G4OxuRVIYJn7x/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzwy2kiewlTkO9zk0qoQVN4LTbLwtZ2L6TjlJAI3Sl01bQf5dW0F94mO2vW5xFSg-eM/exec';
 
 // ===============================
 // 상태
@@ -22,8 +22,7 @@ async function gasCall(params) {
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
   const res = await fetch(url.toString(), {
-    redirect: 'follow',
-    credentials: 'include'   // ✅ 구글 로그인 세션 쿠키 포함 → "나만" 설정에서도 인증 통과
+    redirect: 'follow'
   });
 
   if (!res.ok) throw new Error(`GAS 응답 오류: ${res.status}`);
@@ -36,7 +35,6 @@ async function gasPost(body) {
   const res = await fetch(GAS_WEB_APP_URL, {
     method: 'POST',
     redirect: 'follow',
-    credentials: 'include',  // ✅ 동일하게 세션 쿠키 포함
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(body)
   });
@@ -227,7 +225,7 @@ function requestUploadToken() {
           scope: 'https://www.googleapis.com/auth/drive.file',
           callback: (resp) => {
             if (resp.error) { console.error(resp.error); resolve(null); return; }
-            // ✅ sessionStorage 저장 + 토큰 값 직접 반환
+            //✅ sessionStorage저장 + 토큰 값 직접 반환
             sessionStorage.setItem('drive_access_token', resp.access_token);
             sessionStorage.setItem('drive_token_exp', String(Date.now() + resp.expires_in * 1000));
             resolve(resp.access_token);
@@ -351,9 +349,9 @@ function renderFiles(files, quota) {
       <!-- 파일 그리드 -->
       <div class="flex flex-wrap gap-4 items-start content-start flex-1">
         ${files.length > 0
-          ? list
-          : '<div class="w-full py-20 flex flex-col items-center justify-center text-slate-400 font-bold"><i class="fa-solid fa-folder-open text-5xl mb-4 opacity-50 block"></i>이 폴더는 비어 있습니다.</div>'
-        }
+      ? list
+      : '<div class="w-full py-20 flex flex-col items-center justify-center text-slate-400 font-bold"><i class="fa-solid fa-folder-open text-5xl mb-4 opacity-50 block"></i>이 폴더는 비어 있습니다.</div>'
+    }
       </div>
     </div>
   `;
