@@ -7,8 +7,8 @@ const DRIVE_CONFIG = {
   CLIENT_ID: '299405203142-8cdiq5unru0ocif4qti948hsmm2ge83h.apps.googleusercontent.com',
   API_KEY: 'AIzaSyBLbhkWaq44NBPTHQKZyCwaEBOWYjNlcWU',
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-  SCOPES: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file'
-  // ✅ FIX 4: drive.file만으로는 기존 파일 조회 불가 → drive.readonly 추가
+  SCOPES: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive'
+  // ✅ drive.readonly: 기존 파일 조회 / drive: 파일 삭제 권한 포함
 };
 
 // 상태
@@ -97,6 +97,61 @@ function hasToken() {
 }
 
 // ===============================
+// QUOTA HELPER
+// ===============================
+function bytesToGB(bytes) {
+  return (Number(bytes) / (1024 ** 3)).toFixed(2);
+}
+
+async function fetchQuota() {
+  try {
+    const res = await gapi.client.drive.about.get({ fields: 'storageQuota' });
+    const q = res.result.storageQuota;
+    const used = Number(q.usage || 0);
+    const total = Number(q.limit || 0);
+
+    if (total === 0) {
+      // G Suite unlimited 계정 등 limit 없는 경우
+      return { usedGB: bytesToGB(used), totalGB: null, percent: 0 };
+    }
+
+    const percent = Math.min(Math.round((used / total) * 100), 100);
+    return { usedGB: bytesToGB(used), totalGB: bytesToGB(total), percent };
+  } catch (e) {
+    console.warn('Quota fetch failed:', e);
+    return null;
+  }
+}
+
+function renderQuotaBar(quota) {
+  if (!quota) return '';
+
+  const { usedGB, totalGB, percent } = quota;
+
+  // 사용량에 따라 색상 변화
+  let barColor = 'bg-blue-500';
+  if (percent >= 90) barColor = 'bg-red-500';
+  else if (percent >= 70) barColor = 'bg-amber-500';
+
+  const label = totalGB
+    ? `${usedGB} GB / ${totalGB} GB 사용 (${percent}%)`
+    : `${usedGB} GB 사용 중`;
+
+  return `
+    <div class="flex flex-col gap-1.5 min-w-[160px]">
+      <div class="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+        <i class="fa-solid fa-hard-drive text-slate-400"></i>
+        <span>${label}</span>
+      </div>
+      ${totalGB ? `
+      <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+        <div class="${barColor} h-2 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+// ===============================
 // FILE LOAD (폴더 기반)
 // ===============================
 async function loadFiles(folderId = driveState.currentFolderId) {
@@ -117,32 +172,69 @@ async function loadFiles(folderId = driveState.currentFolderId) {
 
     driveState.currentFolderId = folderId;
 
-    // ✅ FIX 1: 백틱 내부 이스케이프 제거 (파일이 .js로 저장될 때 \` 불필요)
     const q = `'${folderId}' in parents and trashed = false`;
 
-    const res = await gapi.client.drive.files.list({
-      pageSize: 50,
-      fields: 'files(id,name,mimeType,thumbnailLink,webViewLink,iconLink)',
-      orderBy: 'folder, modifiedTime desc',
-      q
-    });
+    // 파일 목록과 용량을 병렬로 요청
+    const [res, quota] = await Promise.all([
+      gapi.client.drive.files.list({
+        pageSize: 50,
+        fields: 'files(id,name,mimeType,thumbnailLink,webViewLink,iconLink)',
+        orderBy: 'folder, modifiedTime desc',
+        q
+      }),
+      fetchQuota()
+    ]);
 
-    renderFiles(res.result.files);
+    renderFiles(res.result.files, quota);
   } catch (e) {
     renderError(e);
   }
 }
 
 // ===============================
+// DELETE FILE/FOLDER
+// ===============================
+window.deleteItem = async function (event, fileId, fileName) {
+  // ✅ 이벤트 버블링 방지: 폴더 진입 / 파일 열기 이벤트 차단
+  event.stopPropagation();
+
+  const confirmed = confirm(`"${fileName}"\n\n정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
+  if (!confirmed) return;
+
+  try {
+    await gapi.client.drive.files.delete({ fileId });
+    loadFiles();
+  } catch (e) {
+    alert('삭제 실패: ' + (e.result?.error?.message || e.message || '알 수 없는 오류'));
+    console.error('Delete error:', e);
+  }
+}
+
+// ===============================
 // UI (Explorer)
 // ===============================
-function renderFiles(files) {
+function renderFiles(files, quota) {
   const breadcrumb = renderBreadcrumb();
+  const isRoot = driveState.folderStack.length === 0;
+
+  // ✅ [1] 뒤로 가기 버튼 (루트일 때는 숨김)
+  const backButton = isRoot ? '' : `
+    <button
+      onclick="goBack()"
+      class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all hover:-translate-x-0.5 border border-slate-200 shrink-0"
+      title="상위 폴더로 이동"
+    >
+      <i class="fa-solid fa-arrow-left"></i>
+      <span class="hidden sm:inline">뒤로</span>
+    </button>
+  `;
+
+  // ✅ [2] 용량 계기판
+  const quotaBar = renderQuotaBar(quota);
 
   const list = files.map(f => {
     const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
 
-    // ✅ FIX 2: < div, < img 등 태그 내 불필요한 공백 제거
     const thumb = isFolder
       ? `<div class="w-16 h-16 flex items-center justify-center bg-amber-100 rounded-2xl mb-3 shadow-inner group-hover:bg-amber-200 transition-colors"><i class="fa-solid fa-folder text-4xl text-amber-500"></i></div>`
       : `<img src="${f.thumbnailLink || f.iconLink || 'https://via.placeholder.com/80?text=No+Thumb'}" class="w-16 h-16 object-cover rounded-2xl mb-3 shadow-sm group-hover:shadow-md transition-shadow bg-slate-100">`;
@@ -151,8 +243,21 @@ function renderFiles(files) {
       ? `onclick="enterFolder('${f.id}','${f.name.replace(/'/g, "\\'")}')"`
       : `onclick="openDriveFile('${f.webViewLink}')"`;
 
+    // ✅ [3] 삭제 버튼 (카드 우측 상단)
+    const escapedName = f.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const deleteBtn = `
+      <button
+        onclick="deleteItem(event, '${f.id}', '${escapedName}')"
+        class="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+        title="삭제"
+      >
+        <i class="fa-solid fa-trash text-xs"></i>
+      </button>
+    `;
+
     return `
-      <div class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-indigo-200 transition-all duration-300 cursor-pointer w-32 group hover:-translate-y-1" ${clickAction}>
+      <div class="relative flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-indigo-200 transition-all duration-300 cursor-pointer w-32 group hover:-translate-y-1" ${clickAction}>
+        ${deleteBtn}
         ${thumb}
         <div class="text-xs font-bold text-slate-700 w-full truncate text-center group-hover:text-indigo-600 transition-colors" title="${f.name}">${f.name}</div>
       </div>
@@ -164,7 +269,11 @@ function renderFiles(files) {
       
       <!-- 상단 헤더 영역 -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 shrink-0">
-          <div class="flex items-center gap-4 overflow-hidden">
+          <div class="flex items-center gap-3 overflow-hidden">
+
+              <!-- ✅ 뒤로 가기 버튼 -->
+              ${backButton}
+
               <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
                   <i class="fa-brands fa-google-drive text-2xl text-blue-500"></i>
               </div>
@@ -174,7 +283,11 @@ function renderFiles(files) {
               </div>
           </div>
           
-          <div class="flex items-center gap-3 shrink-0">
+          <div class="flex flex-col items-end gap-3 shrink-0">
+            <!-- ✅ 용량 계기판 -->
+            ${quotaBar}
+
+            <div class="flex items-center gap-3">
               <!-- 파일 업로드 버튼 -->
               <label for="driveUploadInput" id="uploadLabelBtn" class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 hover:scale-105 shrink-0 m-0">
                   <i class="fa-solid fa-cloud-arrow-up"></i> 파일 업로드
@@ -185,6 +298,7 @@ function renderFiles(files) {
               <button onclick="promptCreateFolder()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 hover:scale-105 shrink-0 m-0 border-none">
                   <i class="fa-solid fa-folder-plus"></i> 새 폴더
               </button>
+            </div>
           </div>
       </div>
 
@@ -226,6 +340,19 @@ window.goToIndex = function (index) {
   driveState.folderStack = driveState.folderStack.slice(0, index + 1);
   const folder = driveState.folderStack[index];
   loadFiles(folder.id);
+}
+
+// ✅ [1] 뒤로 가기: folderStack에서 마지막 항목 pop 후 이전 폴더로 이동
+window.goBack = function () {
+  if (driveState.folderStack.length === 0) return;
+  driveState.folderStack.pop();
+
+  if (driveState.folderStack.length === 0) {
+    loadFiles('root');
+  } else {
+    const parent = driveState.folderStack[driveState.folderStack.length - 1];
+    loadFiles(parent.id);
+  }
 }
 
 // ===============================
@@ -324,7 +451,6 @@ async function createFolder(name) {
 // ===============================
 function loadScript(src) {
   return new Promise((res, rej) => {
-    // ✅ FIX 3: querySelector 내 백틱 이스케이프 제거
     if (document.querySelector(`script[src="${src}"]`)) return res();
     const s = document.createElement('script');
     s.src = src;
