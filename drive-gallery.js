@@ -4,7 +4,7 @@
 // ===============================
 
 // ✅ GAS 배포 후 여기에 URL 입력
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbynRN0PlLDHxeHy3CMf1KxB-Mh8K2rjP_TsyPPdL4EW8aRgnT8ByYbtFtUsUvUmE2e2/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzof8Np-moBYs5tc7xpHReig6dCQk-iaKH_TCi9R8T5zdtNqxfyX9FwafHVP3wskTS_/exec';
 
 // ===============================
 // 상태
@@ -22,7 +22,8 @@ async function gasCall(params) {
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
   const res = await fetch(url.toString(), {
-    redirect: 'follow'
+    redirect: 'follow',
+    credentials: 'include'   // ✅ 구글 로그인 세션 쿠키 포함 → "나만" 설정에서도 인증 통과
   });
 
   if (!res.ok) throw new Error(`GAS 응답 오류: ${res.status}`);
@@ -35,7 +36,8 @@ async function gasPost(body) {
   const res = await fetch(GAS_WEB_APP_URL, {
     method: 'POST',
     redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain' }, // GAS는 text/plain으로 받아야 postData 접근 가능
+    credentials: 'include',  // ✅ 동일하게 세션 쿠키 포함
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(body)
   });
 
@@ -119,18 +121,14 @@ function renderQuotaBar(quota) {
 
 // ===============================
 // FILE LOAD
+// ✅ 파일목록+용량을 한 번의 GAS 호출로 처리 → 레이턴시 절반으로 단축
 // ===============================
 async function loadFiles(folderId = driveState.currentFolderId) {
   try {
     driveState.currentFolderId = folderId;
 
-    // 파일 목록 + 용량 병렬 요청
-    const [filesData, quota] = await Promise.all([
-      gasCall({ action: 'listFiles', folderId }),
-      gasCall({ action: 'getQuota' }).catch(() => null)
-    ]);
-
-    renderFiles(filesData.files || [], quota);
+    const data = await gasCall({ action: 'listWithQuota', folderId });
+    renderFiles(data.files || [], data.quota || null);
   } catch (e) {
     renderError(e);
   }
@@ -178,21 +176,14 @@ window.handleUploadWrapper = async function (input) {
   }
 };
 
-// ✅ 업로드: 브라우저의 구글 세션 쿠키로 Drive API 직접 호출
-// (GAS는 바이너리 수신 불가 → 브라우저에서 직접 처리)
 async function uploadFile(file) {
-  // 1단계: 구글 계정 Access Token 획득 (현재 로그인 세션 활용)
-  // 개인용이므로 implicit grant 방식 대신, Drive API picker 없이
-  // Google Identity Services로 토큰 1회 취득 후 업로드
-
-  // ── 토큰이 없으면 안내 후 중단 ──
-  const token = sessionStorage.getItem('drive_access_token');
+  let token = sessionStorage.getItem('drive_access_token');
   const tokenExp = Number(sessionStorage.getItem('drive_token_exp') || 0);
 
+  // ✅ 토큰 없거나 만료 → 인증 후 자동으로 업로드까지 완료 (return 없음)
   if (!token || tokenExp < Date.now()) {
-    alert('파일 업로드를 위해 1회 Google 인증이 필요합니다.\n확인을 누르면 인증창이 열립니다.');
-    await requestUploadToken();
-    return; // 토큰 취득 콜백에서 uploadFile 재호출됨
+    token = await requestUploadToken();
+    if (!token) return; // 사용자가 인증 취소한 경우
   }
 
   const form = new FormData();
@@ -216,34 +207,34 @@ async function uploadFile(file) {
   loadFiles();
 }
 
-// ✅ 업로드 전용 토큰 취득 (세션스토리지에 저장 → 세션 동안 유지)
+// ✅ 토큰 취득 후 토큰 값 직접 반환 → 인증 직후 바로 업로드 진행
 let _uploadTokenClient = null;
-let _pendingFile = null;
 
 function requestUploadToken() {
   return new Promise((resolve) => {
+    const UPLOAD_CLIENT_ID = 'AKfycbzof8Np-moBYs5tc7xpHReig6dCQk-iaKH_TCi9R8T5zdtNqxfyX9FwafHVP3wskTS_';
+
+    if (!UPLOAD_CLIENT_ID || UPLOAD_CLIENT_ID === 'YOUR_OAUTH_CLIENT_ID_HERE') {
+      alert('업로드 기능을 사용하려면 drive-gallery.js의 UPLOAD_CLIENT_ID를 설정해 주세요.');
+      resolve(null);
+      return;
+    }
+
     const initAndRequest = () => {
       if (!_uploadTokenClient) {
-        // CLIENT_ID를 여기에 입력 (업로드 기능 사용 시에만 필요)
-        const UPLOAD_CLIENT_ID = 'AKfycbynRN0PlLDHxeHy3CMf1KxB-Mh8K2rjP_TsyPPdL4EW8aRgnT8ByYbtFtUsUvUmE2e2';
-
-        if (!UPLOAD_CLIENT_ID || UPLOAD_CLIENT_ID === 'YOUR_OAUTH_CLIENT_ID_HERE') {
-          alert('업로드 기능을 사용하려면 drive-gallery.js의 UPLOAD_CLIENT_ID를 설정해 주세요.');
-          resolve();
-          return;
-        }
-
         _uploadTokenClient = google.accounts.oauth2.initTokenClient({
           client_id: UPLOAD_CLIENT_ID,
           scope: 'https://www.googleapis.com/auth/drive.file',
           callback: (resp) => {
-            if (resp.error) { console.error(resp.error); resolve(); return; }
+            if (resp.error) { console.error(resp.error); resolve(null); return; }
+            // ✅ sessionStorage 저장 + 토큰 값 직접 반환
             sessionStorage.setItem('drive_access_token', resp.access_token);
             sessionStorage.setItem('drive_token_exp', String(Date.now() + resp.expires_in * 1000));
-            resolve();
+            resolve(resp.access_token);
           }
         });
       }
+      // prompt: '' → 이미 동의한 경우 팝업 없이 조용히 토큰 갱신
       _uploadTokenClient.requestAccessToken({ prompt: '' });
     };
 
@@ -360,9 +351,9 @@ function renderFiles(files, quota) {
       <!-- 파일 그리드 -->
       <div class="flex flex-wrap gap-4 items-start content-start flex-1">
         ${files.length > 0
-      ? list
-      : '<div class="w-full py-20 flex flex-col items-center justify-center text-slate-400 font-bold"><i class="fa-solid fa-folder-open text-5xl mb-4 opacity-50 block"></i>이 폴더는 비어 있습니다.</div>'
-    }
+          ? list
+          : '<div class="w-full py-20 flex flex-col items-center justify-center text-slate-400 font-bold"><i class="fa-solid fa-folder-open text-5xl mb-4 opacity-50 block"></i>이 폴더는 비어 있습니다.</div>'
+        }
       </div>
     </div>
   `;
